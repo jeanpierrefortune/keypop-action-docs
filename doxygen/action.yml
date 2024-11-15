@@ -20,14 +20,14 @@ runs:
         if [ ! -d ".github/doxygen" ]; then
           echo "::error::Directory .github/doxygen not found"
           exit 1
-        fi
-
+        
     - name: Show Action Version
       shell: bash
       run: |
         echo "::group::Action Version Info"
-        echo "Using keypop-documentation-tools-action version: ${{ github.ref_name }}"
+        echo "Using keypop-action-docs version: ${{ github.ref_name }}"
         echo "SHA: ${{ github.sha }}"
+        echo "Action path: ${{ github.action_path }}"
         echo "::endgroup::"
 
     - name: Set up Python
@@ -36,11 +36,6 @@ runs:
         python-version: '3.12'
         cache: 'pip'
         cache-dependency-path: '${{ github.action_path }}/scripts/requirements.txt'
-
-    - name: Print Action Path
-      shell: bash
-      run: |
-        echo "${{ github.action_path }}"        
 
     - name: Install Python dependencies
       shell: bash
