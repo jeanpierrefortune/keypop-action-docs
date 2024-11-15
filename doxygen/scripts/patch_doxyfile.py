@@ -91,7 +91,7 @@ class DoxyfileUpdater:
 
         logger.info(f"Using API version: {version}")
 
-        doxyfile_path = Path(".github/doxygen/Doxyfile")
+        doxyfile_path = Path("/doxygen/doxygen/Doxyfile")
         if not doxyfile_path.exists():
             raise FileNotFoundError(f"Doxyfile not found at {doxyfile_path}")
 
