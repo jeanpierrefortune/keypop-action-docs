@@ -11,6 +11,10 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Show Action Version
+      shell: bash
+      run: echo "Using keypop-action-docs/doxygen@${GITHUB_ACTION_REF:-unknown}"
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
