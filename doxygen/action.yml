@@ -37,6 +37,11 @@ runs:
         cache: 'pip'
         cache-dependency-path: '${{ github.action_path }}/doxygen/scripts/requirements.txt'
 
+    - name: Print Action Path
+      shell: bash
+      run: |
+        echo "${{ github.action_path }}"        
+
     - name: Install Python dependencies
       shell: bash
       run: |
