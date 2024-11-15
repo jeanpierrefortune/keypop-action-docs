@@ -44,12 +44,12 @@ runs:
     - name: Patch Doxyfile
       if: always()
       shell: bash
-      run: python ${{ github.action_path }}/scripts/patch_doxyfile.py "${{ github.action_path }}/doxygen/Doxyfile" "${{ inputs.version }}"
+      run: python ${{ github.action_path }}/scripts/patch_doxyfile.py "/home/runner/work/${{ inputs.repo-name }}/${{ inputs.repo-name }}/.github/doxygen/Doxyfile" "${{ inputs.version }}"
 
     - name: Copy Doxyfile and logo.svg
       shell: bash
       run: |
-        echo "Copying Doxyfile and logo.svg from ${{ github.action_path }}/doxygen/ to /home/runner/work/${{ inputs.repo-name }}/${{ inputs.repo-name }}/.github/doxygen/"
+        echo "Copying logo.svg from ${{ github.action_path }}/doxygen/ to /home/runner/work/${{ inputs.repo-name }}/${{ inputs.repo-name }}/.github/doxygen/"
         cp -r "${{ github.action_path }}/doxygen/." "/home/runner/work/${{ inputs.repo-name }}/${{ inputs.repo-name }}/.github/doxygen/"
 
     - name: Generate documentation
