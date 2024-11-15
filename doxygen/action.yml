@@ -36,6 +36,8 @@ runs:
       run: |
         echo "Contents of ${{ github.action_path }}:"
         ls -la "${{ github.action_path }}"
+        echo "Contents of ${{ github.action_path }}/scripts:"
+        ls -la "${{ github.action_path }}/scripts"
 
     - name: Set up Python
       uses: actions/setup-python@v5
