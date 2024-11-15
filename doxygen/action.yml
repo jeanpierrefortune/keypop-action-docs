@@ -24,36 +24,10 @@ runs:
         echo "Action path: ${{ github.action_path }}"
         echo "::endgroup::"
 
-    - name: List action path contents
-      shell: bash
-      run: |
-        echo "Contents of ${{ github.action_path }}:"
-        ls -la "${{ github.action_path }}"
-        echo "Contents of ${{ github.action_path }}/scripts:"
-        ls -la "${{ github.action_path }}/scripts"
-
-    - name: List repository contents
-      shell: bash
-      run: |
-        echo "Contents of /home/runner/work/keypop-card-cpp-api/keypop-card-cpp-api:"
-        ls -la "/home/runner/work/keypop-card-cpp-api/keypop-card-cpp-api"
-
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-
-    - name: Display Python environment
-      shell: bash
-      run: |
-        python --version
-        pip --version
-        echo "pythonLocation: ${{ env.pythonLocation }}"
-        echo "PKG_CONFIG_PATH: ${{ env.PKG_CONFIG_PATH }}"
-        echo "Python_ROOT_DIR: ${{ env.Python_ROOT_DIR }}"
-        echo "Python2_ROOT_DIR: ${{ env.Python2_ROOT_DIR }}"
-        echo "Python3_ROOT_DIR: ${{ env.Python3_ROOT_DIR }}"
-        echo "LD_LIBRARY_PATH: ${{ env.LD_LIBRARY_PATH }}"
 
     - name: Install Python dependencies
       shell: bash
