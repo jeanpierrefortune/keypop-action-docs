@@ -13,7 +13,11 @@ runs:
   steps:
     - name: Show Action Version
       shell: bash
-      run: echo "Using keypop-action-docs/doxygen@${GITHUB_ACTION_REF:-unknown}"
+      run: |
+        echo "::group::Action Version Info"
+        echo "Using keypop-documentation-tools-action version: $GITHUB_ACTION_REF"
+        echo "SHA: ${GITHUB_ACTION_SHA:-unknown}"
+        echo "::endgroup::"
 
     - name: Set up Python
       uses: actions/setup-python@v5
