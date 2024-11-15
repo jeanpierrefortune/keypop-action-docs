@@ -25,12 +25,20 @@ runs:
     - name: Check version
       if: inputs.version != ''
       shell: python
-      run: ${{ github.action_path }}/scripts/check_version.py "${{ inputs.version }}"
+      run: |
+        import sys
+        sys.path.append('${{ github.action_path }}/scripts')
+        import check_version
+        check_version.main('${{ inputs.version }}')
 
     - name: Patch Doxyfile
+      if: always()
       shell: python
       run: |
-        python ${{ github.action_path }}/scripts/patch_doxyfile.py "${{ inputs.version }}"
+        import sys
+        sys.path.append('${{ github.action_path }}/scripts')
+        import patch_doxyfile
+        patch_doxyfile.main('${{ inputs.version }}')
 
     - name: Generate documentation
       uses: mattnotmitt/doxygen-action@v1.9.2
@@ -41,6 +49,7 @@ runs:
     - name: Prepare documentation
       shell: python
       run: |
-        python ${{ github.action_path }}/scripts/prepare_documentation.py \
-          --repo-name "${{ inputs.repo-name }}" \
-          --version "${{ inputs.version }}"
+        import sys
+        sys.path.append('${{ github.action_path }}/scripts')
+        import prepare_documentation
+        prepare_documentation.main(['--repo-name', '${{ inputs.repo-name }}', '--version', '${{ inputs.version }}'])
