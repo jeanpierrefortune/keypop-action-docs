@@ -39,6 +39,12 @@ runs:
         echo "Contents of ${{ github.action_path }}/scripts:"
         ls -la "${{ github.action_path }}/scripts"
 
+    - name: List repository contents
+      shell: bash
+      run: |
+        echo "Contents of /home/runner/work/keypop-card-cpp-api/keypop-card-cpp-api:"
+        ls -la "/home/runner/work/keypop-card-cpp-api/keypop-card-cpp-api"
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
