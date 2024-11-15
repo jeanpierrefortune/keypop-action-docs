@@ -1,5 +1,8 @@
 name: 'C++ API Documentation'
 description: 'Generate and publish Doxygen documentation'
+branding:
+  icon: 'book-open'
+  color: 'blue'
 inputs:
   version:
     description: 'Version to publish'
@@ -11,6 +14,14 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Check environment
+      shell: bash
+      run: |
+        if [ ! -d ".github/doxygen" ]; then
+          echo "::error::Directory .github/doxygen not found"
+          exit 1
+        fi
+
     - name: Show Action Version
       shell: bash
       run: |
@@ -23,12 +34,14 @@ runs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'
+        cache: 'pip'
+        cache-dependency-path: '${{ github.action_path }}/requirements.txt'
 
     - name: Install Python dependencies
       shell: bash
       run: |
         python -m pip install --upgrade pip
-        pip install packaging
+        pip install -r "${{ github.action_path }}/requirements.txt"
 
     - name: Check version
       if: inputs.version != ''
@@ -41,6 +54,7 @@ runs:
       run: python ${{ github.action_path }}/scripts/patch_doxyfile.py "${{ inputs.version }}"
 
     - name: Generate documentation
+      timeout-minutes: 5
       uses: mattnotmitt/doxygen-action@v1.9.2
       with:
         working-directory: .github/doxygen/
@@ -50,5 +64,6 @@ runs:
       shell: bash
       run: |
         python ${{ github.action_path }}/scripts/prepare_documentation.py \
+          --github-org "eclipse-keypop" \
           --repo-name "${{ inputs.repo-name }}" \
           --version "${{ inputs.version }}"
