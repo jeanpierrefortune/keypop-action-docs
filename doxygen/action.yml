@@ -77,6 +77,6 @@ runs:
       shell: bash
       run: |
         python ${{ github.action_path }}/scripts/prepare_documentation.py \
-          --github-org "eclipse-keypop" \
+          --github-org ${GITHUB_REPOSITORY_OWNER} \
           --repo-name "${{ inputs.repo-name }}" \
           --version "${{ inputs.version }}"
