@@ -67,6 +67,11 @@ runs:
       shell: bash
       run: python ${{ github.action_path }}/scripts/patch_doxyfile.py "${{ inputs.version }}"
 
+    - name: Copy Doxyfile and logo.svg
+      shell: bash
+      run: |
+        cp -r "${{ github.action_path }}/doxygen/." "/home/runner/work/${{ inputs.repo-name }}/${{ inputs.repo-name }}/.github/doxygen/"
+
     - name: Generate documentation
       uses: mattnotmitt/doxygen-action@v1.9.2
       with:
