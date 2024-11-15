@@ -15,8 +15,8 @@ runs:
       shell: bash
       run: |
         echo "::group::Action Version Info"
-        echo "Using keypop-documentation-tools-action version: $GITHUB_ACTION_REF"
-        echo "SHA: ${GITHUB_ACTION_SHA:-unknown}"
+        echo "Using keypop-documentation-tools-action version: ${{ github.ref_name }}"
+        echo "SHA: ${{ github.sha }}"
         echo "::endgroup::"
 
     - name: Set up Python
@@ -32,21 +32,13 @@ runs:
 
     - name: Check version
       if: inputs.version != ''
-      shell: python
-      run: |
-        import sys
-        sys.path.append('${{ github.action_path }}/scripts')
-        import check_version
-        check_version.main('${{ inputs.version }}')
+      shell: bash
+      run: python ${{ github.action_path }}/scripts/check_version.py "${{ inputs.version }}"
 
     - name: Patch Doxyfile
       if: always()
-      shell: python
-      run: |
-        import sys
-        sys.path.append('${{ github.action_path }}/scripts')
-        import patch_doxyfile
-        patch_doxyfile.main('${{ inputs.version }}')
+      shell: bash
+      run: python ${{ github.action_path }}/scripts/patch_doxyfile.py "${{ inputs.version }}"
 
     - name: Generate documentation
       uses: mattnotmitt/doxygen-action@v1.9.2
@@ -55,9 +47,8 @@ runs:
         doxyfile-path: ./Doxyfile
 
     - name: Prepare documentation
-      shell: python
+      shell: bash
       run: |
-        import sys
-        sys.path.append('${{ github.action_path }}/scripts')
-        import prepare_documentation
-        prepare_documentation.main(['--repo-name', '${{ inputs.repo-name }}', '--version', '${{ inputs.version }}'])
+        python ${{ github.action_path }}/scripts/prepare_documentation.py \
+          --repo-name "${{ inputs.repo-name }}" \
+          --version "${{ inputs.version }}"
