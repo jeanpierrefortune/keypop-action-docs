@@ -65,9 +65,9 @@ runs:
     - name: Install Python dependencies
       shell: bash
       run: |
-        echo "Installing Python dependencies from ${{ github.action_path }}/doxygen/scripts/requirements.txt"
+        echo "Installing Python dependencies from ${{ github.action_path }}/scripts/requirements.txt"
         python -m pip install --upgrade pip
-        pip install -r "${{ github.action_path }}/doxygen/scripts/requirements.txt"
+        pip install -r "${{ github.action_path }}/scripts/requirements.txt"
 
     - name: Check version
       if: inputs.version != ''
@@ -82,8 +82,8 @@ runs:
     - name: Copy Doxyfile and logo.svg
       shell: bash
       run: |
-        echo "Copying Doxyfile and logo.svg from ${{ github.action_path }}/doxygen/doxygen/ to /home/runner/work/${{ inputs.repo-name }}/${{ inputs.repo-name }}/.github/doxygen/"
-        cp -r "${{ github.action_path }}/doxygen/doxygen/." "/home/runner/work/${{ inputs.repo-name }}/${{ inputs.repo-name }}/.github/doxygen/"
+        echo "Copying Doxyfile and logo.svg from ${{ github.action_path }}/doxygen/ to /home/runner/work/${{ inputs.repo-name }}/${{ inputs.repo-name }}/.github/doxygen/"
+        cp -r "${{ github.action_path }}/doxygen/." "/home/runner/work/${{ inputs.repo-name }}/${{ inputs.repo-name }}/.github/doxygen/"
 
     - name: Generate documentation
       uses: mattnotmitt/doxygen-action@v1.9.2
