@@ -224,9 +224,10 @@ class DocumentationManager:
             f.write("| Version | Documents |\n")
             f.write("|:---:|---|\n")
 
-            if sorted_versions and Path("latest-stable").exists():
-                latest_target = sorted_versions[0]
-                f.write(f"| latest-stable ({latest_target}) | [API documentation](latest-stable) |\n")
+            # Find the first non-SNAPSHOT version
+            latest_stable = next((v for v in sorted_versions if "-SNAPSHOT" not in v), None)
+            if latest_stable:
+                f.write(f"| latest-stable ({latest_stable}) | [API documentation](latest-stable) |\n")
             elif sorted_versions:
                 f.write(f"| latest-stable | [API documentation](latest-stable) |\n")
 
