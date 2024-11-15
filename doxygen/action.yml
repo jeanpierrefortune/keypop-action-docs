@@ -31,6 +31,12 @@ runs:
         echo "Action path: ${{ github.action_path }}"
         echo "::endgroup::"
 
+    - name: List action path contents
+      shell: bash
+      run: |
+        echo "Contents of ${{ github.action_path }}:"
+        ls -la "${{ github.action_path }}"
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
