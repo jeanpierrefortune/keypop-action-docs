@@ -62,6 +62,12 @@ runs:
       run: |
         cp "${{ github.action_path }}/doxygen/scripts/requirements.txt" "/home/runner/work/${{ inputs.repo-name }}/${{ inputs.repo-name }}/"
 
+    - name: List repository contents 2
+      shell: bash
+      run: |
+        echo "Contents 2 of /home/runner/work/keypop-card-cpp-api/keypop-card-cpp-api:"
+        ls -la "/home/runner/work/keypop-card-cpp-api/keypop-card-cpp-api"
+
     - name: Install Python dependencies
       shell: bash
       run: |
