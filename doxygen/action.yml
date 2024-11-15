@@ -60,6 +60,7 @@ runs:
     - name: Copy requirements.txt
       shell: bash
       run: |
+        echo "Copying requirements.txt from ${{ github.action_path }}/doxygen/scripts/ to /home/runner/work/${{ inputs.repo-name }}/${{ inputs.repo-name }}/"
         cp "${{ github.action_path }}/doxygen/scripts/requirements.txt" "/home/runner/work/${{ inputs.repo-name }}/${{ inputs.repo-name }}/"
 
     - name: List repository contents 2
@@ -68,9 +69,22 @@ runs:
         echo "Contents 2 of /home/runner/work/keypop-card-cpp-api/keypop-card-cpp-api:"
         ls -la "/home/runner/work/keypop-card-cpp-api/keypop-card-cpp-api"
 
+    - name: Display Python environment
+      shell: bash
+      run: |
+        python --version
+        pip --version
+        echo "pythonLocation: ${{ env.pythonLocation }}"
+        echo "PKG_CONFIG_PATH: ${{ env.PKG_CONFIG_PATH }}"
+        echo "Python_ROOT_DIR: ${{ env.Python_ROOT_DIR }}"
+        echo "Python2_ROOT_DIR: ${{ env.Python2_ROOT_DIR }}"
+        echo "Python3_ROOT_DIR: ${{ env.Python3_ROOT_DIR }}"
+        echo "LD_LIBRARY_PATH: ${{ env.LD_LIBRARY_PATH }}"
+
     - name: Install Python dependencies
       shell: bash
       run: |
+        echo "Installing Python dependencies from ${{ github.action_path }}/doxygen/scripts/requirements.txt"
         python -m pip install --upgrade pip
         pip install -r "${{ github.action_path }}/doxygen/scripts/requirements.txt"
 
@@ -87,6 +101,7 @@ runs:
     - name: Copy Doxyfile and logo.svg
       shell: bash
       run: |
+        echo "Copying Doxyfile and logo.svg from ${{ github.action_path }}/doxygen/ to /home/runner/work/${{ inputs.repo-name }}/${{ inputs.repo-name }}/.github/doxygen/"
         cp -r "${{ github.action_path }}/doxygen/." "/home/runner/work/${{ inputs.repo-name }}/${{ inputs.repo-name }}/.github/doxygen/"
 
     - name: Generate documentation
