@@ -20,7 +20,8 @@ runs:
         if [ ! -d ".github/doxygen" ]; then
           echo "::error::Directory .github/doxygen not found"
           exit 1
-        
+        fi
+
     - name: Show Action Version
       shell: bash
       run: |
