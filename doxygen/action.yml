@@ -70,7 +70,7 @@ runs:
     - name: Patch Doxyfile
       if: always()
       shell: bash
-      run: python ${{ github.action_path }}/scripts/patch_doxyfile.py "${{ inputs.version }}"
+      run: python ${{ github.action_path }}/scripts/patch_doxyfile.py "${{ github.action_path }}/doxygen/Doxyfile" "${{ inputs.version }}"
 
     - name: Copy Doxyfile and logo.svg
       shell: bash

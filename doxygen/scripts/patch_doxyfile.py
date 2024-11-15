@@ -70,11 +70,12 @@ class DoxyfileUpdater:
 
         return version
 
-    def update_doxyfile(self, version: Optional[str] = None) -> None:
+    def update_doxyfile(self, doxyfile_path: Path, version: Optional[str] = None) -> None:
         """
         Update Doxyfile with current version
 
         Args:
+            doxyfile_path: Path to the Doxyfile
             version: Optional version string, if not provided will be extracted from CMakeLists.txt
 
         Raises:
@@ -91,7 +92,6 @@ class DoxyfileUpdater:
 
         logger.info(f"Using API version: {version}")
 
-        doxyfile_path = Path("/doxygen/doxygen/Doxyfile")
         if not doxyfile_path.exists():
             raise FileNotFoundError(f"Doxyfile not found at {doxyfile_path}")
 
@@ -105,12 +105,13 @@ class DoxyfileUpdater:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Update Doxyfile version")
+    parser.add_argument("doxyfile_path", type=Path, help="Path to the Doxyfile")
     parser.add_argument("version", nargs="?", help="Version to set (optional)")
     args = parser.parse_args()
 
     try:
         updater = DoxyfileUpdater()
-        updater.update_doxyfile(args.version)
+        updater.update_doxyfile(args.doxyfile_path, args.version)
     except Exception as e:
         logger.error(str(e))
         raise SystemExit(1)
