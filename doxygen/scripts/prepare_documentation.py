@@ -232,8 +232,6 @@ class DocumentationManager:
             latest_stable = next((v for v in sorted_versions if "-SNAPSHOT" not in v), None)
             if latest_stable:
                 f.write(f"| latest-stable ({latest_stable}) | [API documentation](latest-stable) |\n")
-            elif sorted_versions:
-                f.write(f"| latest-stable | [API documentation](latest-stable) |\n")
 
             for version in sorted_versions:
                 f.write(f"| {version} | [API documentation]({version}) |\n")
