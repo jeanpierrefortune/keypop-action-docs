@@ -57,7 +57,7 @@ jobs:
 
       # Test with no version
       - name: Test docs without version
-        uses: ./
+        uses: ./doxygen
         with:
           repo-name: ${{ github.event.repository.name }}
 
@@ -70,7 +70,7 @@ jobs:
 
       # Test with version
       - name: Test docs with version
-        uses: ./
+        uses: ./doxygen
         with:
           repo-name: ${{ github.event.repository.name }}
           version: "1.0.0"
@@ -90,7 +90,7 @@ jobs:
       - name: Test docs with invalid version
         id: invalid-version
         continue-on-error: true
-        uses: ./
+        uses: ./doxygen
         with:
           repo-name: ${{ github.event.repository.name }}
           version: "invalid"
