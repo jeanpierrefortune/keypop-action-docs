@@ -1,0 +1,101 @@
+# .github/workflows/test-cpp-docs.yml
+name: Test C++ Documentation Action
+on:
+  pull_request:
+    paths:
+      - 'cpp/action.yml'
+      - '.github/workflows/test-cpp-docs.yml'
+      - 'cpp/scripts/**'
+      - 'cpp/doxygen/**'
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'cpp/action.yml'
+      - '.github/workflows/test-cpp-docs.yml'
+      - 'cpp/scripts/**'
+      - 'cpp/doxygen/**'
+
+jobs:
+  test-cpp-docs:
+    name: Test C++ Doxygen Action
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Create test C++ files
+      - name: Create test C++ files
+        shell: bash
+        run: |
+          mkdir -p test/cpp/src
+          cat > test/cpp/src/example.h << 'EOL'
+          /**
+           * @brief Example class for testing C++ documentation
+           */
+          class Example {
+          public:
+              /** Do something */
+              void doSomething();
+          };
+          EOL
+
+      # Create test Doxyfile
+      - name: Create test Doxyfile
+        shell: bash
+        run: |
+          mkdir -p .github/doxygen
+          cat > .github/doxygen/Doxyfile << 'EOL'
+          PROJECT_NAME           = "C++ Test Project"
+          OUTPUT_DIRECTORY       = docs
+          GENERATE_HTML         = YES
+          HTML_OUTPUT          = html
+          INPUT                = test/cpp/src
+          FILE_PATTERNS        = *.h
+          RECURSIVE           = YES
+          EOL
+
+      # Test with no version
+      - name: Test C++ docs without version
+        uses: ./cpp
+        with:
+          repo-name: ${{ github.event.repository.name }}
+
+      - name: Verify C++ docs without version
+        run: |
+          if [ ! -f ".github/doxygen/docs/html/index.html" ]; then
+            echo "C++ documentation was not generated"
+            exit 1
+          fi
+
+      # Test with version
+      - name: Test C++ docs with version
+        uses: ./cpp
+        with:
+          repo-name: ${{ github.event.repository.name }}
+          version: "1.0.0"
+
+      - name: Verify C++ docs with version
+        run: |
+          if [ ! -f ".github/doxygen/docs/html/index.html" ]; then
+            echo "C++ documentation was not generated"
+            exit 1
+          fi
+          if ! grep -q "1.0.0" ".github/doxygen/docs/html/index.html"; then
+            echo "Version number not found in C++ documentation"
+            exit 1
+          fi
+
+      # Test with invalid version
+      - name: Test C++ docs with invalid version
+        id: invalid-version
+        continue-on-error: true
+        uses: ./cpp
+        with:
+          repo-name: ${{ github.event.repository.name }}
+          version: "invalid"
+
+      - name: Verify invalid version fails
+        if: steps.invalid-version.outcome == 'success'
+        run: |
+          echo "C++ documentation action should have failed with invalid version"
+          exit 1
