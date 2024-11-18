@@ -3,17 +3,17 @@ name: Test C++ Documentation Action
 on:
   pull_request:
     paths:
-      - 'cpp/action.yml'
+      - 'action.yml'
       - '.github/workflows/test-cpp-docs.yml'
-      - 'cpp/scripts/**'
-      - 'cpp/doxygen/**'
+      - 'scripts/**'
+      - 'doxygen/**'
   push:
     branches: [ main, master ]
     paths:
-      - 'cpp/action.yml'
+      - 'action.yml'
       - '.github/workflows/test-cpp-docs.yml'
-      - 'cpp/scripts/**'
-      - 'cpp/doxygen/**'
+      - 'scripts/**'
+      - 'doxygen/**'
 
 jobs:
   test-cpp-docs:
@@ -25,10 +25,13 @@ jobs:
 
       # Create test C++ files
       - name: Create test C++ files
-        shell: bash
         run: |
-          mkdir -p test/cpp/src
-          cat > test/cpp/src/example.h << 'EOL'
+          # Create test directories
+          mkdir -p test/src
+          mkdir -p .github/doxygen
+
+          # Create example C++ file
+          cat > test/src/example.h << 'EOL'
           /**
            * @brief Example class for testing C++ documentation
            */
@@ -39,24 +42,20 @@ jobs:
           };
           EOL
 
-      # Create test Doxyfile
-      - name: Create test Doxyfile
-        shell: bash
-        run: |
-          mkdir -p .github/doxygen
+          # Create test Doxyfile
           cat > .github/doxygen/Doxyfile << 'EOL'
           PROJECT_NAME           = "C++ Test Project"
           OUTPUT_DIRECTORY       = docs
           GENERATE_HTML         = YES
           HTML_OUTPUT          = html
-          INPUT                = test/cpp/src
+          INPUT                = test/src
           FILE_PATTERNS        = *.h
           RECURSIVE           = YES
           EOL
 
       # Test with no version
       - name: Test C++ docs without version
-        uses: ./cpp
+        uses: ./
         with:
           repo-name: ${{ github.event.repository.name }}
 
@@ -69,7 +68,7 @@ jobs:
 
       # Test with version
       - name: Test C++ docs with version
-        uses: ./cpp
+        uses: ./
         with:
           repo-name: ${{ github.event.repository.name }}
           version: "1.0.0"
@@ -89,7 +88,7 @@ jobs:
       - name: Test C++ docs with invalid version
         id: invalid-version
         continue-on-error: true
-        uses: ./cpp
+        uses: ./
         with:
           repo-name: ${{ github.event.repository.name }}
           version: "invalid"
