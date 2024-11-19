@@ -13,6 +13,7 @@ on:
       - '.github/workflows/test-cpp-docs.yml'
       - 'doxygen/scripts/**'
       - 'doxygen/doxygen/**'
+  workflow_dispatch:
 
 jobs:
   test-cpp-docs:

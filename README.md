@@ -4,17 +4,6 @@ Collection of GitHub Actions for generating and publishing documentation for Key
 
 ## Available Actions
 
-### JavaDoc Documentation (`/javadoc`)
-
-Action for generating and publishing Keypop libraries Java API documentation using JavaDoc.
-
-```yaml
-- uses: eclipse-keypop/documentation-tools-action/javadoc@v1
-  with:
-    version: "1.0.0"              # Optional: Version to publish (required for release)
-    repo-name: "keypop-reader"    # Required: Repository name
-```
-
 ### Doxygen Documentation (`/doxygen`)
 
 Action for generating and publishing C++ API documentation using Doxygen.
@@ -28,7 +17,7 @@ Action for generating and publishing C++ API documentation using Doxygen.
 
 ## Usage Examples
 
-### Publishing JavaDoc Documentation on Release
+### Publishing Doxygen Documentation on Release
 
 ```yaml
 name: Publish API documentation (release)
@@ -55,7 +44,7 @@ jobs:
             echo "version=${GITHUB_REF#refs/tags/}"
           } >> "$GITHUB_OUTPUT"
 
-      - uses: eclipse-keypop/documentation-tools-action/javadoc@v1
+      - uses: eclipse-keypop/documentation-tools-action/doxygen@v1
         with:
           version: ${{ steps.repo-info.outputs.version }}
           repo-name: ${{ steps.repo-info.outputs.repo_name }}
@@ -68,16 +57,6 @@ jobs:
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
           commit_message: 'docs: update ${{ steps.repo-info.outputs.version }} documentation'
-```
-
-### Publishing Doxygen Documentation on Release
-
-```yaml
-# Similar to JavaDoc example but using doxygen action
-- uses: eclipse-keypop/documentation-tools-action/doxygen@v1
-  with:
-    version: ${{ steps.repo-info.outputs.version }}
-    repo-name: ${{ steps.repo-info.outputs.repo_name }}
 ```
 
 ## Features
@@ -94,18 +73,14 @@ jobs:
 The generated documentation follows this structure:
 ```
 your-repo-gh-pages/
+├── 1.1.1-SNAPSHOT/      # Development version
+├── 1.1.0-rc1/           # Release candidate
 ├── latest-stable/        # Symlink to latest stable version
 ├── 1.0.0/               # Stable version
-├── 1.1.0-rc1/           # Release candidate
-├── 1.1.0-SNAPSHOT/      # Development version
 └── list_versions.md     # Version listing
 ```
 
 ## Requirements
-
-### For JavaDoc Documentation
-- Java project with proper package structure
-- Version information in `pom.xml`
 
 ### For Doxygen Documentation
 - Doxygen configuration file at `.github/doxygen/Doxyfile`
