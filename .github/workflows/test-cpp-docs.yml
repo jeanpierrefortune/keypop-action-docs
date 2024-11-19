@@ -19,9 +19,6 @@ jobs:
   test-cpp-docs:
     name: Test C++ Doxygen Action
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: doxygen
 
     steps:
       - name: Checkout
@@ -30,7 +27,7 @@ jobs:
       # Create test files
       - name: Create test environment
         run: |
-          # Create CMakeLists.txt
+          # Create CMakeLists.txt in root directory
           cat > CMakeLists.txt << 'EOL'
           cmake_minimum_required(VERSION 3.10)
           project(KeypopDocs
@@ -44,10 +41,10 @@ jobs:
           EOL
 
           # Create test directory
-          mkdir -p .github/doxygen/test/src
+          mkdir -p doxygen/.github/doxygen/test/src
 
           # Create example C++ file for documentation
-          cat > .github/doxygen/test/src/example.h << 'EOL'
+          cat > doxygen/.github/doxygen/test/src/example.h << 'EOL'
           /**
            * @brief Example class for testing C++ documentation
            */
@@ -59,7 +56,7 @@ jobs:
           EOL
 
           # Create test Doxyfile
-          cat > .github/doxygen/Doxyfile << 'EOL'
+          cat > doxygen/.github/doxygen/Doxyfile << 'EOL'
           PROJECT_NAME           = "C++ Test Project"
           OUTPUT_DIRECTORY       = docs
           GENERATE_HTML         = YES
@@ -71,11 +68,13 @@ jobs:
 
       # Test with no version
       - name: Test docs without version
+        working-directory: doxygen
         uses: ./doxygen
         with:
           repo-name: ${{ github.event.repository.name }}
 
       - name: Verify docs without version
+        working-directory: doxygen
         run: |
           if [ ! -f ".github/doxygen/docs/html/index.html" ]; then
             echo "Documentation was not generated"
@@ -84,12 +83,14 @@ jobs:
 
       # Test with version
       - name: Test docs with version
+        working-directory: doxygen
         uses: ./doxygen
         with:
           repo-name: ${{ github.event.repository.name }}
           version: "1.0.0"
 
       - name: Verify docs with version
+        working-directory: doxygen
         run: |
           if [ ! -f ".github/doxygen/docs/html/index.html" ]; then
             echo "Documentation was not generated"
@@ -104,6 +105,7 @@ jobs:
       - name: Test docs with invalid version
         id: invalid-version
         continue-on-error: true
+        working-directory: doxygen
         uses: ./doxygen
         with:
           repo-name: ${{ github.event.repository.name }}
@@ -111,6 +113,7 @@ jobs:
 
       - name: Verify invalid version fails
         if: steps.invalid-version.outcome == 'success'
+        working-directory: doxygen
         run: |
           echo "Action should have failed with invalid version"
           exit 1
