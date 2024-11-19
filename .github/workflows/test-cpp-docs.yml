@@ -33,30 +33,39 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
 
+      - name: Setup test branch
+        run: |
+          git checkout -b test-docs
+
       - name: Setup gh-pages branch
         run: |
-          git fetch origin gh-pages || git checkout --orphan gh-pages
-          git checkout gh-pages || true
-          git pull origin gh-pages || true
-          git checkout ${{ github.sha }}
+          git checkout -b gh-pages || true
 
       # Test RC version
       - name: Create test environment for RC
         run: |
           mkdir -p .github/doxygen/test/src .github/doxygen/out/html
-
-          # Create CMakeLists.txt with RC version
+          
           cat > CMakeLists.txt << 'EOL'
-          cmake_minimum_required(VERSION 3.10)
-          project(KeypopDocs
+          cmake_minimum_required(VERSION 3.5)
+
+          SET(RC_VERSION "1")
+
+          PROJECT(KeypopDocs
               VERSION 1.0.0
-              DESCRIPTION "Keypop Documentation"
-              LANGUAGES CXX
-          )
-          set(RC_VERSION "1")
+              C CXX)
+
+          if(DEFINED RC_VERSION)
+              SET(PACKAGE_VERSION "${PROJECT_VERSION}-rc${RC_VERSION}")
+          else()
+              SET(PACKAGE_VERSION "${PROJECT_VERSION}")
+          endif()
+
+          SET(PACKAGE_NAME "keypop-docs")
+          SET(PACKAGE_VERSION ${CMAKE_PROJECT_VERSION})
+          SET(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
           EOL
 
-          # Create example header file
           cat > .github/doxygen/test/src/example.h << 'EOL'
           /**
            * @brief Example class for testing C++ documentation
@@ -68,7 +77,6 @@ jobs:
           };
           EOL
 
-          # Create Doxyfile
           cat > .github/doxygen/Doxyfile << 'EOL'
           PROJECT_NAME           = "C++ Test Project"
           OUTPUT_DIRECTORY       = out
@@ -79,7 +87,6 @@ jobs:
           RECURSIVE           = YES
           EOL
 
-      # Test RC version
       - name: Test docs with RC version
         uses: ./doxygen
         with:
@@ -94,17 +101,19 @@ jobs:
             exit 1
           fi
 
-      # Test non-RC version
+      # Test release version
       - name: Create test environment for release
         run: |
-          # Update CMakeLists.txt without RC version
           cat > CMakeLists.txt << 'EOL'
-          cmake_minimum_required(VERSION 3.10)
-          project(KeypopDocs
+          cmake_minimum_required(VERSION 3.5)
+
+          PROJECT(KeypopDocs
               VERSION 1.0.0
-              DESCRIPTION "Keypop Documentation"
-              LANGUAGES CXX
-          )
+              C CXX)
+
+          SET(PACKAGE_VERSION "${PROJECT_VERSION}")
+          SET(PACKAGE_NAME "keypop-docs")
+          SET(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
           EOL
 
       - name: Test docs with release version
