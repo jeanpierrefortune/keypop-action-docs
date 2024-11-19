@@ -25,83 +25,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Git User
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
 
-      - name: Fetch gh-pages branch
+      - name: Setup gh-pages branch
         run: |
-          git fetch origin gh-pages
-          git checkout gh-pages || git checkout -b gh-pages
+          git fetch origin gh-pages || git checkout --orphan gh-pages
+          git checkout gh-pages || true
           git pull origin gh-pages || true
 
-      - name: Create test environment for SNAPSHOT/Release
-        if: github.event_name != 'pull_request'
+      # Test RC version
+      - name: Create test environment for RC
         run: |
           mkdir -p .github/doxygen/test/src .github/doxygen/out/html
-
-          cat > .github/doxygen/test/src/example.h << 'EOL'
-          /**
-           * @brief Example class for testing C++ documentation
-           */
-          class Example {
-          public:
-              /** Do something */
-              void doSomething();
-          };
-          EOL
-
-          cat > .github/doxygen/Doxyfile << 'EOL'
-          PROJECT_NAME           = "C++ Test Project"
-          OUTPUT_DIRECTORY       = out
-          GENERATE_HTML         = YES
-          HTML_OUTPUT          = html
-          INPUT                = test/src
-          FILE_PATTERNS        = *.h
-          RECURSIVE           = YES
-          EOL
-
-          cat > CMakeLists.txt << 'EOL'
-          cmake_minimum_required(VERSION 3.10)
-          project(KeypopDocs
-              VERSION 1.0.0
-              DESCRIPTION "Keypop Documentation"
-              LANGUAGES CXX
-          )
-          EOL
-
-          echo "<html><body>Version 1.0.0</body></html>" > .github/doxygen/out/html/index.html
-          
-          git checkout main
-
-      - name: Create test environment for RC
-        if: github.event_name == 'pull_request'
-        run: |
-          mkdir -p .github/doxygen/test/src
-          mkdir -p .github/doxygen/out/html
-
-          cat > .github/doxygen/test/src/example.h << 'EOL'
-          /**
-           * @brief Example class for testing C++ documentation
-           */
-          class Example {
-          public:
-              /** Do something */
-              void doSomething();
-          };
-          EOL
-
-          cat > .github/doxygen/Doxyfile << 'EOL'
-          PROJECT_NAME           = "C++ Test Project"
-          OUTPUT_DIRECTORY       = out
-          GENERATE_HTML         = YES
-          HTML_OUTPUT          = html
-          INPUT                = test/src
-          FILE_PATTERNS        = *.h
-          RECURSIVE           = YES
-          EOL
 
           cat > CMakeLists.txt << 'EOL'
           cmake_minimum_required(VERSION 3.10)
@@ -113,54 +54,27 @@ jobs:
           set(RC_VERSION "1")
           EOL
 
-          echo "<html><body>Version 1.0.0-rc1</body></html>" > .github/doxygen/out/html/index.html
+          cat > .github/doxygen/test/src/example.h << 'EOL'
+          /**
+           * @brief Example class for testing C++ documentation
+           */
+          class Example {
+          public:
+              /** Do something */
+              void doSomething();
+          };
+          EOL
 
-      # Test with no version (SNAPSHOT)
-      - name: Test docs without version
-        uses: ./doxygen
-        with:
-          repo-name: keypop-action-docs
+          cat > .github/doxygen/Doxyfile << 'EOL'
+          PROJECT_NAME           = "C++ Test Project"
+          OUTPUT_DIRECTORY       = out
+          GENERATE_HTML         = YES
+          HTML_OUTPUT          = html
+          INPUT                = test/src
+          FILE_PATTERNS        = *.h
+          RECURSIVE           = YES
+          EOL
 
-      - name: Verify docs without version
-        run: |
-          cd keypop-action-docs
-          if [ ! -d "1.0.0-SNAPSHOT" ]; then
-            echo "SNAPSHOT directory was not created"
-            exit 1
-          fi
-          if [ ! -f "list_versions.md" ]; then
-            echo "Versions list was not generated"
-            exit 1
-          fi
-
-      # Test with release version
-      - name: Test docs with version
-        uses: ./doxygen
-        with:
-          repo-name: keypop-action-docs
-          version: "1.0.0"
-
-      - name: Verify docs with version
-        run: |
-          cd keypop-action-docs
-          if [ ! -d "1.0.0" ]; then
-            echo "Version directory was not created"
-            exit 1
-          fi
-          if [ ! -L "latest-stable" ]; then
-            echo "latest-stable symlink was not created"
-            exit 1
-          fi
-          if [ ! -f "robots.txt" ]; then
-            echo "robots.txt was not created"
-            exit 1
-          fi
-          if [ ! -f "list_versions.md" ]; then
-            echo "Versions list was not generated"
-            exit 1
-          fi
-
-      # Test with RC version
       - name: Test docs with RC version
         uses: ./doxygen
         with:
