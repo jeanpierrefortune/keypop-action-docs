@@ -30,6 +30,19 @@ jobs:
       # Create test files
       - name: Create test environment
         run: |
+          # Create CMakeLists.txt
+          cat > CMakeLists.txt << 'EOL'
+          cmake_minimum_required(VERSION 3.10)
+          project(KeypopDocs
+              VERSION 1.0.0
+              DESCRIPTION "Keypop Documentation"
+              LANGUAGES CXX
+          )
+          set(PROJECT_VERSION_MAJOR 1)
+          set(PROJECT_VERSION_MINOR 0)
+          set(PROJECT_VERSION_PATCH 0)
+          EOL
+
           # Create test directory
           mkdir -p .github/doxygen/test/src
 
