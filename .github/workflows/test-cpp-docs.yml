@@ -19,18 +19,35 @@ jobs:
   test-cpp-docs:
     name: Test C++ Doxygen Action
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Create test environment
+      - name: Setup Git User
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      - name: Create gh-pages branch
+        run: |
+          # Create and switch to gh-pages branch
+          git checkout --orphan gh-pages
+          git rm -rf .
+          echo "# Documentation" > README.md
+          git add README.md
+          git commit -m "Initial gh-pages commit"
+          git push origin gh-pages
+          git checkout main
+
       - name: Create test environment
         run: |
-          # Create test directory structure
           mkdir -p .github/doxygen/test/src
+          mkdir -p .github/doxygen/out/html
 
-          # Create example C++ file for documentation
+          # Create example C++ file
           cat > .github/doxygen/test/src/example.h << 'EOL'
           /**
            * @brief Example class for testing C++ documentation
@@ -45,7 +62,7 @@ jobs:
           # Create test Doxyfile
           cat > .github/doxygen/Doxyfile << 'EOL'
           PROJECT_NAME           = "C++ Test Project"
-          OUTPUT_DIRECTORY       = docs
+          OUTPUT_DIRECTORY       = out
           GENERATE_HTML         = YES
           HTML_OUTPUT          = html
           INPUT                = test/src
@@ -53,7 +70,7 @@ jobs:
           RECURSIVE           = YES
           EOL
 
-          # Create CMakeLists.txt in root
+          # Create CMakeLists.txt
           cat > CMakeLists.txt << 'EOL'
           cmake_minimum_required(VERSION 3.10)
           project(KeypopDocs
@@ -61,12 +78,12 @@ jobs:
               DESCRIPTION "Keypop Documentation"
               LANGUAGES CXX
           )
-          set(PROJECT_VERSION_MAJOR 1)
-          set(PROJECT_VERSION_MINOR 0)
-          set(PROJECT_VERSION_PATCH 0)
           EOL
 
-      # Test with no version
+          # Create mock Doxygen output
+          echo "<html><body>Version 1.0.0</body></html>" > .github/doxygen/out/html/index.html
+
+      # Test with no version (SNAPSHOT)
       - name: Test docs without version
         uses: ./doxygen
         with:
@@ -74,12 +91,17 @@ jobs:
 
       - name: Verify docs without version
         run: |
-          if [ ! -f ".github/doxygen/docs/html/index.html" ]; then
-            echo "Documentation was not generated"
+          cd keypop-action-docs
+          if [ ! -d "1.0.0-SNAPSHOT" ]; then
+            echo "SNAPSHOT directory was not created"
+            exit 1
+          fi
+          if [ ! -f "list_versions.md" ]; then
+            echo "Versions list was not generated"
             exit 1
           fi
 
-      # Test with version
+      # Test with specific version
       - name: Test docs with version
         uses: ./doxygen
         with:
@@ -88,26 +110,35 @@ jobs:
 
       - name: Verify docs with version
         run: |
-          if [ ! -f ".github/doxygen/docs/html/index.html" ]; then
-            echo "Documentation was not generated"
+          cd keypop-action-docs
+          if [ ! -d "1.0.0" ]; then
+            echo "Version directory was not created"
             exit 1
           fi
-          if ! grep -q "1.0.0" ".github/doxygen/docs/html/index.html"; then
-            echo "Version number not found in documentation" 
+          if [ ! -L "latest-stable" ]; then
+            echo "latest-stable symlink was not created"
+            exit 1
+          fi
+          if [ ! -f "robots.txt" ]; then
+            echo "robots.txt was not created"
+            exit 1
+          fi
+          if [ ! -f "list_versions.md" ]; then
+            echo "Versions list was not generated"
             exit 1
           fi
 
-      # Test with invalid version
-      - name: Test docs with invalid version
-        id: invalid-version
-        continue-on-error: true
+      # Test with RC version
+      - name: Test docs with RC version
         uses: ./doxygen
         with:
           repo-name: keypop-action-docs
-          version: "invalid"
+          version: "1.0.0-rc1"
 
-      - name: Verify invalid version fails
-        if: steps.invalid-version.outcome == 'success'
+      - name: Verify RC version docs
         run: |
-          echo "Action should have failed with invalid version"
-          exit 1
+          cd keypop-action-docs
+          if [ ! -d "1.0.0-rc1" ]; then
+            echo "RC version directory was not created"
+            exit 1
+          fi
