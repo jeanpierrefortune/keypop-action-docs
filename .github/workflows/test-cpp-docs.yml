@@ -40,19 +40,13 @@ jobs:
           
           cat > CMakeLists.txt << 'EOL'
           cmake_minimum_required(VERSION 3.5)
-
           SET(RC_VERSION "1")
-
-          PROJECT(KeypopDocs
-              VERSION 1.0.0
-              C CXX)
-
+          PROJECT(KeypopDocs VERSION 1.0.0 C CXX)
           if(DEFINED RC_VERSION)
               SET(PACKAGE_VERSION "${PROJECT_VERSION}-rc${RC_VERSION}")
           else()
               SET(PACKAGE_VERSION "${PROJECT_VERSION}")
           endif()
-
           SET(PACKAGE_NAME "keypop-docs")
           SET(PACKAGE_VERSION ${CMAKE_PROJECT_VERSION})
           SET(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
@@ -79,30 +73,17 @@ jobs:
           RECURSIVE           = YES
           EOL
 
-      - name: Setup test environment
+      - name: Setup gh-pages branch
         run: |
-          # Create test branch to store action files
-          git checkout -b test-branch
-          
           # Create and setup gh-pages branch
           git checkout --orphan gh-pages
           
-          # Move doxygen action files to temp location
-          mkdir -p ../temp
-          cp -r doxygen ../temp/
-          
-          # Clean working directory except .git
+          # Initialize empty doc directory
           git rm -rf .
           rm -rf *
-          
-          # Restore doxygen action files
-          cp -r ../temp/doxygen .
-          rm -rf ../temp
-          
-          # Initialize gh-pages with docs directory
           mkdir -p keypop-action-docs
           touch keypop-action-docs/.keep
-          git add keypop-action-docs/.keep doxygen
+          git add keypop-action-docs/.keep
           git commit -m "Initialize gh-pages branch"
 
       - name: Test docs with RC version
@@ -121,14 +102,11 @@ jobs:
       # Test release version
       - name: Create test environment for release
         run: |
-          git checkout test-branch
+          git checkout main
+          rm CMakeLists.txt
           cat > CMakeLists.txt << 'EOL'
           cmake_minimum_required(VERSION 3.5)
-
-          PROJECT(KeypopDocs
-              VERSION 1.0.0
-              C CXX)
-
+          PROJECT(KeypopDocs VERSION 1.0.0 C CXX)
           SET(PACKAGE_VERSION "${PROJECT_VERSION}")
           SET(PACKAGE_NAME "keypop-docs")
           SET(PACKAGE_STRING "${PACKAGE_NAME} ${PACKAGE_VERSION}")
@@ -160,4 +138,4 @@ jobs:
         if: always()
         run: |
           git checkout main
-          git branch -D test-branch gh-pages || true
+          git branch -D gh-pages || true
