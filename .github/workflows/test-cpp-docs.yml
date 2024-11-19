@@ -19,19 +19,41 @@ jobs:
   test-cpp-docs:
     name: Test C++ Doxygen Action
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: doxygen
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Create test files
+      # Create test environment
       - name: Create test environment
-        working-directory: .
         run: |
-          # Create CMakeLists.txt in root directory
+          # Create test directory structure
+          mkdir -p .github/doxygen/test/src
+
+          # Create example C++ file for documentation
+          cat > .github/doxygen/test/src/example.h << 'EOL'
+          /**
+           * @brief Example class for testing C++ documentation
+           */
+          class Example {
+          public:
+              /** Do something */
+              void doSomething();
+          };
+          EOL
+
+          # Create test Doxyfile
+          cat > .github/doxygen/Doxyfile << 'EOL'
+          PROJECT_NAME           = "C++ Test Project"
+          OUTPUT_DIRECTORY       = docs
+          GENERATE_HTML         = YES
+          HTML_OUTPUT          = html
+          INPUT                = test/src
+          FILE_PATTERNS        = *.h
+          RECURSIVE           = YES
+          EOL
+
+          # Create CMakeLists.txt in root
           cat > CMakeLists.txt << 'EOL'
           cmake_minimum_required(VERSION 3.10)
           project(KeypopDocs
@@ -44,37 +66,11 @@ jobs:
           set(PROJECT_VERSION_PATCH 0)
           EOL
 
-          # Create test directory
-          mkdir -p doxygen/.github/doxygen/test/src
-
-          # Create example C++ file for documentation
-          cat > doxygen/.github/doxygen/test/src/example.h << 'EOL'
-          /**
-           * @brief Example class for testing C++ documentation
-           */
-          class Example {
-          public:
-              /** Do something */
-              void doSomething();
-          };
-          EOL
-
-          # Create test Doxyfile
-          cat > doxygen/.github/doxygen/Doxyfile << 'EOL'
-          PROJECT_NAME           = "C++ Test Project"
-          OUTPUT_DIRECTORY       = docs
-          GENERATE_HTML         = YES
-          HTML_OUTPUT          = html
-          INPUT                = test/src
-          FILE_PATTERNS        = *.h
-          RECURSIVE           = YES
-          EOL
-
       # Test with no version
       - name: Test docs without version
         uses: ./doxygen
         with:
-          repo-name: ${{ github.event.repository.name }}
+          repo-name: keypop-action-docs
 
       - name: Verify docs without version
         run: |
@@ -87,7 +83,7 @@ jobs:
       - name: Test docs with version
         uses: ./doxygen
         with:
-          repo-name: ${{ github.event.repository.name }}
+          repo-name: keypop-action-docs
           version: "1.0.0"
 
       - name: Verify docs with version
@@ -97,7 +93,7 @@ jobs:
             exit 1
           fi
           if ! grep -q "1.0.0" ".github/doxygen/docs/html/index.html"; then
-            echo "Version number not found in documentation"
+            echo "Version number not found in documentation" 
             exit 1
           fi
 
@@ -107,7 +103,7 @@ jobs:
         continue-on-error: true
         uses: ./doxygen
         with:
-          repo-name: ${{ github.event.repository.name }}
+          repo-name: keypop-action-docs
           version: "invalid"
 
       - name: Verify invalid version fails
