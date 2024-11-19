@@ -224,18 +224,21 @@ class DocumentationManager:
         sorted_versions = sorted(versions, key=self._get_version_key, reverse=True)
         logger.debug(f"Sorted versions: {sorted_versions}")
 
+        # Find the latest stable version (first non-SNAPSHOT, non-RC version)
+        latest_stable = next((v for v in sorted_versions if "-SNAPSHOT" not in v and "-rc" not in v), None)
+
         with versions_file.open("w") as f:
             f.write("| Version | Documents |\n")
             f.write("|:---:|---|\n")
 
-            # Find the first non-SNAPSHOT version
-            latest_stable = next((v for v in sorted_versions if "-SNAPSHOT" not in v), None)
-            if latest_stable:
-                f.write(f"| latest-stable ({latest_stable}) | [API documentation](latest-stable) |\n")
-
             for version in sorted_versions:
-                f.write(f"| {version} | [API documentation]({version}) |\n")
+                # If this is the stable version and we haven't written it yet
+                if version == latest_stable:
+                    # Write latest-stable first
+                    f.write(f"| latest-stable ({latest_stable}) | [API documentation](latest-stable) |\n")
 
+                # Write the current version
+                f.write(f"| {version} | [API documentation]({version}) |\n")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Prepare API documentation")
