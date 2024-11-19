@@ -33,6 +33,25 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
 
+      # Create temporary gh-pages branch for testing
+      - name: Setup gh-pages branch
+        run: |
+          # Create and checkout test branch to save current state
+          git checkout -b test-branch
+          
+          # Create orphan gh-pages branch without removing files
+          git checkout --orphan gh-pages
+          git reset --mixed
+          
+          # Only keep what we need
+          git clean -fd
+          find . -maxdepth 1 ! -name '.git' ! -name 'doxygen' ! -name '.github' -exec rm -rf {} +
+          
+          # Initial commit
+          touch .keep
+          git add .keep
+          git commit -m "Initialize gh-pages branch"
+
       # Test RC version
       - name: Create test environment for RC
         run: |
@@ -79,14 +98,6 @@ jobs:
           RECURSIVE           = YES
           EOL
 
-      - name: Create temporary gh-pages branch
-        run: |
-          git checkout --orphan gh-pages
-          git rm -rf .
-          touch .keep
-          git add .keep
-          git commit -m "Initialize gh-pages branch"
-
       - name: Test docs with RC version
         uses: ./doxygen
         with:
@@ -104,7 +115,6 @@ jobs:
       # Test release version
       - name: Create test environment for release
         run: |
-          git checkout -
           cat > CMakeLists.txt << 'EOL'
           cmake_minimum_required(VERSION 3.5)
 
@@ -139,8 +149,9 @@ jobs:
             exit 1
           fi
 
-      - name: Cleanup
+      # Cleanup
+      - name: Cleanup test branches
         if: always()
         run: |
-          git checkout -
-          git branch -D gh-pages || true
+          git checkout main || git checkout master
+          git branch -D test-branch gh-pages || true
