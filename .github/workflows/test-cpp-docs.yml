@@ -31,21 +31,16 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
 
-      - name: Create gh-pages branch
+      - name: Fetch gh-pages branch
         run: |
-          git checkout --orphan gh-pages
-          git rm -rf .
-          echo "# Documentation" > README.md
-          git add README.md
-          git commit -m "Initial gh-pages commit"
-          git push origin gh-pages
-          git checkout main
+          git fetch origin gh-pages
+          git checkout gh-pages || git checkout -b gh-pages
+          git pull origin gh-pages || true
 
       - name: Create test environment for SNAPSHOT/Release
         if: github.event_name != 'pull_request'
         run: |
-          mkdir -p .github/doxygen/test/src
-          mkdir -p .github/doxygen/out/html
+          mkdir -p .github/doxygen/test/src .github/doxygen/out/html
 
           cat > .github/doxygen/test/src/example.h << 'EOL'
           /**
@@ -78,6 +73,8 @@ jobs:
           EOL
 
           echo "<html><body>Version 1.0.0</body></html>" > .github/doxygen/out/html/index.html
+          
+          git checkout main
 
       - name: Create test environment for RC
         if: github.event_name == 'pull_request'
