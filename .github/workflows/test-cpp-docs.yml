@@ -79,20 +79,31 @@ jobs:
           RECURSIVE           = YES
           EOL
 
-      - name: Create temporary gh-pages branch
+      - name: Setup test environment
         run: |
-          # Save current state
-          git worktree add -b test-branch ../test-branch HEAD
+          # Create test branch to store action files
+          git checkout -b test-branch
           
-          # Create orphan gh-pages branch
+          # Create and setup gh-pages branch
           git checkout --orphan gh-pages
+          
+          # Move doxygen action files to temp location
+          mkdir -p ../temp
+          cp -r doxygen ../temp/
+          
+          # Clean working directory except .git
           git rm -rf .
+          rm -rf *
+          
+          # Restore doxygen action files
+          cp -r ../temp/doxygen .
+          rm -rf ../temp
+          
+          # Initialize gh-pages with docs directory
           mkdir -p keypop-action-docs
-          cd keypop-action-docs
-          touch .keep
-          git add .keep
+          touch keypop-action-docs/.keep
+          git add keypop-action-docs/.keep doxygen
           git commit -m "Initialize gh-pages branch"
-          cd ..
 
       - name: Test docs with RC version
         uses: ./doxygen
@@ -149,5 +160,4 @@ jobs:
         if: always()
         run: |
           git checkout main
-          git worktree remove ../test-branch || true
           git branch -D test-branch gh-pages || true
