@@ -79,16 +79,20 @@ jobs:
           RECURSIVE           = YES
           EOL
 
-      - name: Create temporary work tree for gh-pages
+      - name: Create temporary gh-pages branch
         run: |
-          git worktree add -b gh-pages ../gh-pages origin/main
-          cd ../gh-pages
+          # Save current state
+          git worktree add -b test-branch ../test-branch HEAD
+          
+          # Create orphan gh-pages branch
+          git checkout --orphan gh-pages
           git rm -rf .
-          git clean -fdx
+          mkdir -p keypop-action-docs
+          cd keypop-action-docs
           touch .keep
           git add .keep
           git commit -m "Initialize gh-pages branch"
-          cd -
+          cd ..
 
       - name: Test docs with RC version
         uses: ./doxygen
@@ -98,8 +102,7 @@ jobs:
 
       - name: Verify RC version docs
         run: |
-          cd keypop-action-docs
-          if [ ! -d "1.0.0-rc1" ]; then
+          if [ ! -d "keypop-action-docs/1.0.0-rc1" ]; then
             echo "RC version directory was not created"
             exit 1
           fi
@@ -107,6 +110,7 @@ jobs:
       # Test release version
       - name: Create test environment for release
         run: |
+          git checkout test-branch
           cat > CMakeLists.txt << 'EOL'
           cmake_minimum_required(VERSION 3.5)
 
@@ -127,16 +131,15 @@ jobs:
 
       - name: Verify release version docs
         run: |
-          cd keypop-action-docs
-          if [ ! -d "1.0.0" ]; then
+          if [ ! -d "keypop-action-docs/1.0.0" ]; then
             echo "Release version directory was not created"
             exit 1
           fi
-          if [ ! -L "latest-stable" ]; then
+          if [ ! -L "keypop-action-docs/latest-stable" ]; then
             echo "latest-stable symlink was not created"
             exit 1
           fi
-          if [ ! -f "robots.txt" ]; then
+          if [ ! -f "keypop-action-docs/robots.txt" ]; then
             echo "robots.txt was not created"
             exit 1
           fi
@@ -145,5 +148,6 @@ jobs:
       - name: Cleanup test branches
         if: always()
         run: |
-          git worktree remove ../gh-pages || true
-          git branch -D gh-pages || true
+          git checkout main
+          git worktree remove ../test-branch || true
+          git branch -D test-branch gh-pages || true
