@@ -19,7 +19,7 @@ runs:
       shell: bash
       run: |
         echo "::group::Action Version Info"
-        echo "Using keypop-action-docs version: ${{ github.ref_name }}"
+        echo "Using keypop-actions version: ${{ env.GITHUB_ACTION_REF }}"
         echo "SHA: ${{ github.sha }}"
         echo "Action path: ${{ github.action_path }}"
         echo "::endgroup::"
