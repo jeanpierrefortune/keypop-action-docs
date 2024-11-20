@@ -153,27 +153,10 @@ class DocumentationManager:
 
             logger.info("Processing SNAPSHOT directories...")
             if not version.endswith("-SNAPSHOT"):
-                # If we're publishing an RC version, remove the base SNAPSHOT
-                if "-rc" in version:
-                    base_version = version.split("-rc")[0]
-                    base_snapshot = f"{base_version}-SNAPSHOT"
-                    base_snapshot_path = Path(base_snapshot)
-                    if base_snapshot_path.exists():
-                        logger.info(f"Removing base SNAPSHOT directory: {base_snapshot_path}")
-                        shutil.rmtree(base_snapshot_path)
-
-                    # Also remove the RC snapshot if it exists
-                    rc_snapshot = f"{version}-SNAPSHOT"
-                    rc_snapshot_path = Path(rc_snapshot)
-                    if rc_snapshot_path.exists():
-                        logger.info(f"Removing RC SNAPSHOT directory: {rc_snapshot_path}")
-                        shutil.rmtree(rc_snapshot_path)
-                else:
-                    version_snapshot = f"{version}-SNAPSHOT"
-                    snapshot_path = Path(version_snapshot)
-                    if snapshot_path.exists():
-                        logger.info(f"Removing version SNAPSHOT directory: {snapshot_path}")
-                        shutil.rmtree(snapshot_path)
+                # When publishing any version (RC or release), remove all SNAPSHOTS
+                for dir_path in Path('.').glob('*-SNAPSHOT'):
+                    logger.info(f"Removing SNAPSHOT directory: {dir_path}")
+                    shutil.rmtree(dir_path)
 
             logger.info(f"Create target directory {version}...")
             version_dir = Path(version)
