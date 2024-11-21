@@ -79,7 +79,7 @@ class DocumentationManager:
         """
         Create a sortable key for version ordering that maintains the following order:
         1. SNAPSHOT versions first (by Java version, then C++ fix)
-        2. Regular versions (by Java version, then C++ fix, oldest first)
+        2. Regular versions (by Java version, then C++ fix, newest first)
 
         Returns tuple of (major, minor, patch, cpp_fix, is_snapshot)
         """
@@ -103,10 +103,6 @@ class DocumentationManager:
 
         except (InvalidVersion, ValueError, IndexError):
             # Return a default tuple in case of parsing error
-            return (True, 0, 0, 0, 0)
-
-        except (InvalidVersion, ValueError, IndexError):
-            # En cas d'erreur de parsing, mettre la version en dernier
             return (True, 0, 0, 0, 0)
 
     def _safe_copy(self, src: Path, dest: Path) -> None:
