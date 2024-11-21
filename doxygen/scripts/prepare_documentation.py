@@ -197,37 +197,44 @@ class DocumentationManager:
         finally:
             self._release_lock()
 
-    def _generate_versions_list(self, docs_dir: Path):
-        """Generate the versions list markdown file"""
-        versions_file = Path("list_versions.md")
+    def _get_version_key(self, version_str: str) -> tuple:
+        """
+        Create a sortable key for version ordering that maintains the following order:
+        1. SNAPSHOT versions first
+        2. RC versions (newest RC first)
+        3. Release versions
 
-        logger.info("Looking for version directories")
-        versions = []
-        for d in Path('.').glob('*'):
-            if d.is_dir() and (self.version_pattern.match(d.name) or "-SNAPSHOT" in d.name):
-                logger.info(f"Found version directory: {d.name}")
-                versions.append(d.name)
-            elif d.is_dir():
-                logger.debug(f"Skipping non-version directory: {d.name}")
+        Returns tuple of (major, minor, patch, version_type, rc_num)
+        version_type: 2 for SNAPSHOT, 1 for RC, 0 for release
+        """
+        try:
+            # Split version into parts
+            if "-rc" in version_str:
+                base_version = version_str.split("-rc")[0]
+                rc_part = version_str.split("-rc")[1]
+                rc_num = int(rc_part.split("-")[0]) if "-" not in rc_part else int(rc_part.split("-SNAPSHOT")[0])
+                is_snapshot = "-SNAPSHOT" in version_str
+            else:
+                base_version = version_str.split("-")[0]
+                rc_num = 0
+                is_snapshot = "-SNAPSHOT" in version_str
 
-        sorted_versions = sorted(versions, key=self._get_version_key, reverse=True)
-        logger.debug(f"Sorted versions: {sorted_versions}")
+            v = parse(base_version)
 
-        # Find the latest stable version (first version without -rc or -SNAPSHOT)
-        latest_stable = next((v for v in sorted_versions if "-" not in v), None)
+            # Determine version type
+            # 2 for SNAPSHOT (highest priority), 1 for RC, 0 for release (lowest priority)
+            if is_snapshot:
+                version_type = 2
+            elif rc_num > 0:
+                version_type = 1
+            else:
+                version_type = 0
 
-        with versions_file.open("w") as f:
-            f.write("| Version | Documents |\n")
-            f.write("|:---:|---|\n")
+            return (v.major, v.minor, v.micro, version_type, rc_num)
 
-            for version in sorted_versions:
-                # If this is the stable version and we haven't written it yet
-                if version == latest_stable:
-                    # Write latest-stable first
-                    f.write(f"| latest-stable ({latest_stable}) | [API documentation](latest-stable) |\n")
-
-                # Write the current version
-                f.write(f"| {version} | [API documentation]({version}) |\n")
+        except (InvalidVersion, ValueError, IndexError):
+            # En cas d'erreur de parsing, mettre la version en dernier
+            return (0, 0, 0, -1, 0)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Prepare API documentation")
