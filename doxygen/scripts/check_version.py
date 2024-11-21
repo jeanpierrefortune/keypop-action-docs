@@ -5,7 +5,7 @@ import re
 import subprocess
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 logging.basicConfig(
     level=logging.INFO,
@@ -20,20 +20,34 @@ class VersionError(Exception):
 class VersionChecker:
     def __init__(self):
         self.version_pattern = re.compile(r'^\d+\.\d+\.\d+(?:-rc\d+)?$')
+        self.base_version_pattern = re.compile(r'^\d+\.\d+\.\d+$')
+        self.rc_pattern = re.compile(r'-rc(\d+)$')
 
     def validate_version(self, version: str) -> bool:
         """Validate version string format"""
         return bool(self.version_pattern.match(version))
 
+    def split_version(self, version: str) -> Tuple[str, Optional[str]]:
+        """Split version into base version and RC number"""
+        if not self.validate_version(version):
+            raise VersionError(f"Invalid version format: {version}")
+
+        rc_match = self.rc_pattern.search(version)
+        if rc_match:
+            base_version = version[:rc_match.start()]
+            rc_num = rc_match.group(1)
+            return base_version, rc_num
+        return version, None
+
     def _parse_cmake_version(self, cmake_file: Path) -> str:
         """
-        Extract version from CMakeLists.txt
+        Extract base version from CMakeLists.txt
 
         Args:
             cmake_file: Path to CMakeLists.txt
 
         Returns:
-            str: Version string in format X.Y.Z or X.Y.Z-rcN
+            str: Version string in format X.Y.Z
 
         Raises:
             FileNotFoundError: If CMakeLists.txt doesn't exist
@@ -51,21 +65,10 @@ class VersionChecker:
             raise VersionError("Could not extract PROJECT VERSION")
 
         version = version_match.group(1)
-
-        rc_version = self._extract_rc_version(content)
-        if rc_version:
-            version = f"{version}-rc{rc_version}"
-
-        if not self.validate_version(version):
-            raise VersionError(f"Invalid version format: {version}")
+        if not self.base_version_pattern.match(version):
+            raise VersionError(f"Invalid base version format in CMakeLists.txt: {version}")
 
         return version
-
-    def _extract_rc_version(self, content: str) -> Optional[str]:
-        """Extract RC version if present"""
-        rc_pattern = r'^[^#]*SET\s*\((?:RC_VERSION|CMAKE_PROJECT_VERSION_RC)\s*"(\d+)"\s*\)'
-        rc_match = re.search(rc_pattern, content, re.MULTILINE)
-        return rc_match.group(1) if rc_match else None
 
     def _run_git_command(self, args: list) -> str:
         """
@@ -93,8 +96,8 @@ class VersionChecker:
             VersionError: If versions don't match or version already exists
         """
         try:
-            version = self._parse_cmake_version(Path("CMakeLists.txt"))
-            logger.info(f"Version in CMakeLists.txt: '{version}'")
+            cmake_version = self._parse_cmake_version(Path("CMakeLists.txt"))
+            logger.info(f"Base version in CMakeLists.txt: '{cmake_version}'")
 
             if tag:
                 if not self.validate_version(tag):
@@ -103,19 +106,24 @@ class VersionChecker:
                 logger.info(f"Input tag: '{tag}'")
                 logger.info("Release mode: checking version consistency...")
 
-                if tag != version:
+                tag_base, tag_rc = self.split_version(tag)
+                if tag_base != cmake_version:
                     raise VersionError(
-                        f"Tag '{tag}' differs from version '{version}' in CMakeLists.txt"
+                        f"Tag base version '{tag_base}' differs from version '{cmake_version}' in CMakeLists.txt"
                     )
                 logger.info(f"Version consistency check passed: '{tag}'")
             else:
                 logger.info("Snapshot mode: fetching tags...")
                 self._run_git_command(["fetch", "--tags"])
 
-                existing_tag = self._run_git_command(["tag", "-l", version])
-                if existing_tag:
-                    raise VersionError(f"Version '{version}' already released")
-                logger.info(f"Version '{version}' not yet released")
+                # Check if any version (base or RC) exists
+                existing_tags = self._run_git_command(["tag", "-l", f"{cmake_version}*"]).split('\n')
+                if existing_tags and any(tag.strip() for tag in existing_tags):
+                    raise VersionError(f"Version '{cmake_version}' or its release candidates already released")
+
+                # Add SNAPSHOT suffix for logging
+                snapshot_version = f"{cmake_version}-SNAPSHOT"
+                logger.info(f"Version '{snapshot_version}' not yet released")
 
         except (subprocess.CalledProcessError, FileNotFoundError, VersionError) as e:
             logger.error(str(e))
@@ -123,6 +131,7 @@ class VersionChecker:
         except Exception as e:
             logger.error(f"Unexpected error: {e}")
             raise SystemExit(1)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Check version consistency")

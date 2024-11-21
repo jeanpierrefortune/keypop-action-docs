@@ -20,7 +20,9 @@ class DocumentationManager:
     def __init__(self, github_org: str, repo_name: str):
         self.repo_url = f"https://github.com/{github_org}/{repo_name}.git"
         self.gh_pages_branch = "gh-pages"
-        self.version_pattern = re.compile(r'^\d+\.\d+\.\d+(?:-rc\d+)?(?:-SNAPSHOT)?$')
+        self.version_pattern = re.compile(r'^\d+\.\d+\.\d+(?:-rc\d+)?$')
+        self.base_version_pattern = re.compile(r'^\d+\.\d+\.\d+$')
+        self.rc_pattern = re.compile(r'-rc(\d+)$')
         self.lock_file = Path("/tmp/doc_manager.lock")
 
     def _acquire_lock(self):
@@ -47,8 +49,13 @@ class DocumentationManager:
 
     def _parse_cmake_version(self, cmake_file: Path) -> str:
         """
-        Extract version from CMakeLists.txt
-        Handles both PROJECT VERSION and RC_VERSION
+        Extract base version from CMakeLists.txt
+
+        Args:
+            cmake_file: Path to CMakeLists.txt
+
+        Returns:
+            str: Version string in format X.Y.Z
 
         Raises:
             ValueError: If version cannot be extracted
@@ -61,38 +68,33 @@ class DocumentationManager:
 
         project_version_pattern = r'PROJECT\s*\([^)]*VERSION\s+(\d+\.\d+\.\d+)[^)]*\)'
         version_match = re.search(project_version_pattern, content, re.MULTILINE | re.IGNORECASE)
+
         if not version_match:
             raise ValueError("Could not extract PROJECT VERSION")
+
         version = version_match.group(1)
+        if not self.base_version_pattern.match(version):
+            raise ValueError(f"Invalid base version format in CMakeLists.txt: {version}")
 
-        rc_pattern = r'^[^#]*SET\s*\(RC_VERSION\s*"(\d+)"\s*\)'
-        rc_match = re.search(rc_pattern, content, re.MULTILINE)
-
-        if rc_match:
-            return f"{version}-rc{rc_match.group(1)}-SNAPSHOT"
-        return f"{version}-SNAPSHOT"
+        return version
 
     def _get_version_key(self, version_str: str) -> tuple:
         """
         Create a sortable key for version ordering that maintains the following order:
-        1. SNAPSHOT versions
-        2. RC versions (newest RC first)
-        3. Release versions
+        1. RC versions (newest RC first)
+        2. Release versions (newest first)
 
-        Returns tuple of (major, minor, patch, version_type, rc_num)
+        Returns tuple of (major, minor, patch, is_rc, rc_num)
         """
         try:
-            base_version = version_str.split('-')[0]
-            v = parse(base_version)
-            base = (v.major, v.minor, v.micro)
-
-            if "-SNAPSHOT" in version_str:
-                return base + (0, 0)
-            elif "-rc" in version_str:
-                rc_num = int(version_str.lower().split("rc")[1].split("-")[0])
-                return base + (1, rc_num)
-            return base + (2, 0)
-
+            if "-rc" in version_str:
+                base_version = version_str.split('-rc')[0]
+                rc_num = int(version_str.split("-rc")[1])
+                v = parse(base_version)
+                return (v.major, v.minor, v.micro, 0, rc_num)
+            else:
+                v = parse(version_str)
+                return (v.major, v.minor, v.micro, 1, 0)
         except InvalidVersion:
             return (0, 0, 0, 999, 0)
 
@@ -121,7 +123,7 @@ class DocumentationManager:
         Main method to prepare documentation
 
         Args:
-            version: Optional version string. If not provided, extracted from CMakeLists.txt
+            version: Version string from tag, if not provided will use base version from CMakeLists.txt with -SNAPSHOT suffix
 
         Raises:
             ValueError: If version is invalid
@@ -131,13 +133,16 @@ class DocumentationManager:
         try:
             self._acquire_lock()
 
-            if not version:
-                version = self._parse_cmake_version(Path("CMakeLists.txt"))
+            if version:
+                if not self.validate_version(version):
+                    raise ValueError(f"Invalid version format: {version}")
+                version_to_use = version
+            else:
+                # Use base version from CMakeLists.txt with -SNAPSHOT suffix
+                base_version = self._parse_cmake_version(Path("CMakeLists.txt"))
+                version_to_use = f"{base_version}-SNAPSHOT"
 
-            if not self.validate_version(version):
-                raise ValueError(f"Invalid version format: {version}")
-
-            logger.info(f"Using version: {version}")
+            logger.info(f"Using version: {version_to_use}")
 
             repo_name = Path.cwd().name
             dest_dir = Path(repo_name)
@@ -151,13 +156,6 @@ class DocumentationManager:
 
             os.chdir(dest_dir)
 
-            logger.info("Processing SNAPSHOT directories...")
-            if not version.endswith("-SNAPSHOT"):
-                # When publishing any version (RC or release), remove all SNAPSHOTS
-                for dir_path in Path('.').glob('*-SNAPSHOT'):
-                    logger.info(f"Removing SNAPSHOT directory: {dir_path}")
-                    shutil.rmtree(dir_path)
-
             logger.info(f"Create target directory {version}...")
             version_dir = Path(version)
             version_dir.mkdir(exist_ok=True)
@@ -170,7 +168,8 @@ class DocumentationManager:
             for item in doxygen_out.glob("*"):
                 self._safe_copy(item, version_dir / item.name)
 
-            if not any(x in version for x in ["-SNAPSHOT", "-rc"]):
+            # Only create latest-stable symlink for non-RC releases
+            if "-rc" not in version:
                 logger.info("Creating latest-stable symlink...")
                 latest_link = Path("latest-stable")
                 if latest_link.exists():
@@ -214,8 +213,8 @@ class DocumentationManager:
         sorted_versions = sorted(versions, key=self._get_version_key, reverse=True)
         logger.debug(f"Sorted versions: {sorted_versions}")
 
-        # Find the latest stable version (first non-SNAPSHOT, non-RC version)
-        latest_stable = next((v for v in sorted_versions if "-SNAPSHOT" not in v and "-rc" not in v), None)
+        # Find the latest stable version (first non-RC version)
+        latest_stable = next((v for v in sorted_versions if "-rc" not in v), None)
 
         with versions_file.open("w") as f:
             f.write("| Version | Documents |\n")
