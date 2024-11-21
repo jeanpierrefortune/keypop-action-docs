@@ -52,32 +52,34 @@ class DocumentationManager:
     def _get_version_key(self, version_str: str) -> tuple:
         """
         Create a sortable key for version ordering that maintains the following order:
-        1. SNAPSHOT versions first (by Java version, then C++ fix)
-        2. Regular versions (by Java version, then C++ fix, newest first)
+        1. SNAPSHOT versions first
+        2. Regular versions in semantic version order (newest first)
+        3. C++ fix versions are treated as an extension of the patch version
 
-        Returns tuple of (major, minor, patch, cpp_fix, is_snapshot)
+        Returns tuple of (is_snapshot, -major, -minor, -patch, -cpp_fix)
+        where negative values are used to sort in descending order
         """
-        try:
-            is_snapshot = "-SNAPSHOT" in version_str
-            clean_version = version_str.replace("-SNAPSHOT", "")
+    try:
+        is_snapshot = "-SNAPSHOT" in version_str
+        clean_version = version_str.replace("-SNAPSHOT", "")
 
-            # Parse version number components
-            if "." in clean_version:
-                *java_parts, cpp_fix = clean_version.split(".")
-                java_version = ".".join(java_parts)
-                cpp_fix = int(cpp_fix)
-            else:
-                java_version = clean_version
-                cpp_fix = 0
+        # Split version components
+        parts = clean_version.split(".")
 
-            v = parse(java_version)
+        # Parse components with defaults
+        major = int(parts[0]) if len(parts) > 0 else 0
+        minor = int(parts[1]) if len(parts) > 1 else 0
+        patch = int(parts[2]) if len(parts) > 2 else 0
+        cpp_fix = int(parts[3]) if len(parts) > 3 else 0
 
-            # Use negative values to reverse chronological order while keeping SNAPSHOT first
-            return (not is_snapshot, -v.major, -v.minor, -v.micro, -cpp_fix)
+        # Use negative values to sort in descending order
+        # Not is_snapshot comes first to keep snapshots at the top
+        return (not is_snapshot, -major, -minor, -patch, -cpp_fix)
 
-        except Exception:
-            # Return a default tuple in case of parsing error
-            return (True, 0, 0, 0, 0)
+    except Exception as e:
+        logger.error(f"Error parsing version {version_str}: {e}")
+        # Return a default tuple that will sort to the end
+        return (True, 0, 0, 0, 0)
 
     def _safe_copy(self, src: Path, dest: Path) -> None:
         """Safely copy files ensuring no path traversal vulnerability"""
