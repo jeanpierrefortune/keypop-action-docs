@@ -59,27 +59,27 @@ class DocumentationManager:
         Returns tuple of (is_snapshot, -major, -minor, -patch, -cpp_fix)
         where negative values are used to sort in descending order
         """
-    try:
-        is_snapshot = "-SNAPSHOT" in version_str
-        clean_version = version_str.replace("-SNAPSHOT", "")
+        try:
+            is_snapshot = "-SNAPSHOT" in version_str
+            clean_version = version_str.replace("-SNAPSHOT", "")
 
-        # Split version components
-        parts = clean_version.split(".")
+            # Split version components
+            parts = clean_version.split(".")
 
-        # Parse components with defaults
-        major = int(parts[0]) if len(parts) > 0 else 0
-        minor = int(parts[1]) if len(parts) > 1 else 0
-        patch = int(parts[2]) if len(parts) > 2 else 0
-        cpp_fix = int(parts[3]) if len(parts) > 3 else 0
+            # Parse components with defaults
+            major = int(parts[0]) if len(parts) > 0 else 0
+            minor = int(parts[1]) if len(parts) > 1 else 0
+            patch = int(parts[2]) if len(parts) > 2 else 0
+            cpp_fix = int(parts[3]) if len(parts) > 3 else 0
 
-        # Use negative values to sort in descending order
-        # Not is_snapshot comes first to keep snapshots at the top
-        return (not is_snapshot, -major, -minor, -patch, -cpp_fix)
+            # Use negative values to sort in descending order
+            # Not is_snapshot comes first to keep snapshots at the top
+            return (not is_snapshot, -major, -minor, -patch, -cpp_fix)
 
-    except Exception as e:
-        logger.error(f"Error parsing version {version_str}: {e}")
-        # Return a default tuple that will sort to the end
-        return (True, 0, 0, 0, 0)
+        except Exception as e:
+            logger.error(f"Error parsing version {version_str}: {e}")
+            # Return a default tuple that will sort to the end
+            return (True, 0, 0, 0, 0)
 
     def _safe_copy(self, src: Path, dest: Path) -> None:
         """Safely copy files ensuring no path traversal vulnerability"""
