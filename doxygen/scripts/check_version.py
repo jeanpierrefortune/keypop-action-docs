@@ -150,3 +150,11 @@ class VersionChecker:
         except Exception as e:
             logger.error(f"Unexpected error: {e}")
             raise SystemExit(1)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Check version consistency")
+    parser.add_argument("--tag", type=str, help="Git tag to check against")
+    args = parser.parse_args()
+
+    version_checker = VersionChecker()
+    version_checker.check_version(args.tag)
