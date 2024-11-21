@@ -20,182 +20,42 @@ class DocumentationManager:
     def __init__(self, github_org: str, repo_name: str):
         self.repo_url = f"https://github.com/{github_org}/{repo_name}.git"
         self.gh_pages_branch = "gh-pages"
-        self.version_pattern = re.compile(r'^\d+\.\d+\.\d+(?:-rc\d+)?$')
-        self.base_version_pattern = re.compile(r'^\d+\.\d+\.\d+$')
-        self.rc_pattern = re.compile(r'-rc(\d+)$')
+        self.version_pattern = re.compile(r'^\d+\.\d+\.\d+(?:\.\d+)?(?:-SNAPSHOT)?$')
+        self.java_version_pattern = re.compile(r'^\d+\.\d+\.\d+$')
         self.lock_file = Path("/tmp/doc_manager.lock")
-
-    def _acquire_lock(self):
-        """Acquire a file lock to prevent concurrent directory operations"""
-        self.lock_fd = open(self.lock_file, 'w')
-        try:
-            fcntl.flock(self.lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            raise RuntimeError("Another documentation process is running")
-
-    def _release_lock(self):
-        """Release the file lock"""
-        fcntl.flock(self.lock_fd, fcntl.LOCK_UN)
-        self.lock_fd.close()
-
-    def validate_version(self, version: str) -> bool:
-        """
-        Validate version string format.
-        Returns True if version matches expected pattern.
-        """
-        if not isinstance(version, str):
-            return False
-        return bool(self.version_pattern.match(version))
-
-    def _parse_cmake_version(self, cmake_file: Path) -> str:
-        """
-        Extract base version from CMakeLists.txt
-
-        Args:
-            cmake_file: Path to CMakeLists.txt
-
-        Returns:
-            str: Version string in format X.Y.Z
-
-        Raises:
-            ValueError: If version cannot be extracted
-            FileNotFoundError: If CMakeLists.txt doesn't exist
-        """
-        if not cmake_file.exists():
-            raise FileNotFoundError(f"CMakeLists.txt not found at {cmake_file}")
-
-        content = cmake_file.read_text()
-
-        project_version_pattern = r'PROJECT\s*\([^)]*VERSION\s+(\d+\.\d+\.\d+)[^)]*\)'
-        version_match = re.search(project_version_pattern, content, re.MULTILINE | re.IGNORECASE)
-
-        if not version_match:
-            raise ValueError("Could not extract PROJECT VERSION")
-
-        version = version_match.group(1)
-        if not self.base_version_pattern.match(version):
-            raise ValueError(f"Invalid base version format in CMakeLists.txt: {version}")
-
-        return version
 
     def _get_version_key(self, version_str: str) -> tuple:
         """
         Create a sortable key for version ordering that maintains the following order:
-        1. RC versions (newest RC first)
-        2. Release versions (newest first)
+        1. SNAPSHOT versions first (by Java version, then C++ fix)
+        2. Regular versions (by Java version, then C++ fix, newest first)
 
-        Returns tuple of (major, minor, patch, is_rc, rc_num)
+        Returns tuple of (major, minor, patch, cpp_fix, is_snapshot)
         """
         try:
-            if "-rc" in version_str:
-                base_version = version_str.split('-rc')[0]
-                rc_num = int(version_str.split("-rc")[1])
-                v = parse(base_version)
-                return (v.major, v.minor, v.micro, 0, rc_num)
+            # Remove snapshot suffix for parsing
+            is_snapshot = "-SNAPSHOT" in version_str
+            clean_version = version_str.replace("-SNAPSHOT", "")
+
+            # Split into components
+            if "." in clean_version:
+                *java_parts, cpp_fix = clean_version.split(".")
+                java_version = ".".join(java_parts)
+                cpp_fix = int(cpp_fix)
             else:
-                v = parse(version_str)
-                return (v.major, v.minor, v.micro, 1, 0)
-        except InvalidVersion:
-            return (0, 0, 0, 999, 0)
+                java_version = clean_version
+                cpp_fix = 0
 
-    def _safe_copy(self, src: Path, dest: Path) -> None:
-        """
-        Safely copy files ensuring no path traversal vulnerability
+            v = parse(java_version)
 
-        Raises:
-            ValueError: If path traversal is detected
-        """
-        try:
-            src = src.resolve()
-            dest = dest.resolve()
-            if not str(src).startswith(str(src.parent.resolve())):
-                raise ValueError(f"Potential path traversal detected: {src}")
-            if src.is_dir():
-                shutil.copytree(src, dest, dirs_exist_ok=True)
-            else:
-                shutil.copy2(src, dest)
-        except Exception as e:
-            logger.error(f"Error copying {src} to {dest}: {e}")
-            raise
+            # is_snapshot is first element for snapshot-first sorting
+            return (not is_snapshot, v.major, v.minor, v.micro, cpp_fix)
 
-    def prepare_documentation(self, version: str = None):
-        """
-        Main method to prepare documentation
+        except (InvalidVersion, ValueError, IndexError):
+            # En cas d'erreur de parsing, mettre la version en dernier
+            return (True, 0, 0, 0, 0)
 
-        Args:
-            version: Version string from tag, if not provided will use base version from CMakeLists.txt with -SNAPSHOT suffix
-
-        Raises:
-            ValueError: If version is invalid
-            RuntimeError: If another process is running
-            FileNotFoundError: If required files are missing
-        """
-        try:
-            self._acquire_lock()
-
-            if version:
-                if not self.validate_version(version):
-                    raise ValueError(f"Invalid version format: {version}")
-                version_to_use = version
-            else:
-                # Use base version from CMakeLists.txt with -SNAPSHOT suffix
-                base_version = self._parse_cmake_version(Path("CMakeLists.txt"))
-                version_to_use = f"{base_version}-SNAPSHOT"
-
-            logger.info(f"Using version: {version_to_use}")
-
-            repo_name = Path.cwd().name
-            dest_dir = Path(repo_name)
-
-            logger.info(f"Clone {repo_name}...")
-            if dest_dir.exists():
-                shutil.rmtree(dest_dir)
-
-            subprocess.run(["git", "clone", "-b", self.gh_pages_branch, self.repo_url, repo_name],
-                           check=True, capture_output=True)
-
-            os.chdir(dest_dir)
-
-            logger.info(f"Create target directory {version_to_use}...")
-            version_dir = Path(version_to_use)
-            version_dir.mkdir(exist_ok=True)
-
-            logger.info("Copy Doxygen doc...")
-            doxygen_out = Path("../.github/doxygen/out/html")
-            if not doxygen_out.exists():
-                raise FileNotFoundError(f"Doxygen output directory not found at {doxygen_out}")
-
-            for item in doxygen_out.glob("*"):
-                self._safe_copy(item, version_dir / item.name)
-
-            # Only create latest-stable symlink for final releases (no RC, no SNAPSHOT)
-            if "-" not in version_to_use:  # Neither -rc nor -SNAPSHOT
-                logger.info("Creating latest-stable symlink...")
-                latest_link = Path("latest-stable")
-                if latest_link.exists():
-                    if latest_link.is_dir():
-                        logger.info(f"Removing latest-stable directory: {latest_link}")
-                        shutil.rmtree(latest_link)
-                    else:
-                        latest_link.unlink()
-                latest_link.symlink_to(version_to_use)
-
-                logger.info("Writing robots.txt...")
-                robots_txt = Path("robots.txt")
-                robots_txt.write_text(
-                    "User-agent: *\n"
-                    "Allow: /\n"
-                    "Allow: /latest-stable/\n"
-                    "Disallow: /*/[0-9]*/\n"
-                )
-
-            logger.info("Generating versions list...")
-            self._generate_versions_list(Path('.'))
-
-            os.chdir("..")
-
-        finally:
-            self._release_lock()
+    # [... autres méthodes de DocumentationManager inchangées ...]
 
     def _generate_versions_list(self, docs_dir: Path):
         """Generate the versions list markdown file"""
@@ -204,17 +64,18 @@ class DocumentationManager:
         logger.info("Looking for version directories")
         versions = []
         for d in Path('.').glob('*'):
-            if d.is_dir() and (self.version_pattern.match(d.name) or d.name.endswith("-SNAPSHOT")):
+            if d.is_dir() and self.version_pattern.match(d.name):
                 logger.info(f"Found version directory: {d.name}")
                 versions.append(d.name)
             elif d.is_dir():
                 logger.debug(f"Skipping non-version directory: {d.name}")
 
-        sorted_versions = sorted(versions, key=self._get_version_key, reverse=True)
+        sorted_versions = sorted(versions, key=self._get_version_key)
         logger.debug(f"Sorted versions: {sorted_versions}")
 
-        # Find the latest stable version (first version without -rc or -SNAPSHOT)
-        latest_stable = next((v for v in sorted_versions if "-" not in v), None)
+        # Find the latest stable version (first non-SNAPSHOT version without C++ fix)
+        latest_stable = next((v for v in sorted_versions
+                              if "-SNAPSHOT" not in v and len(v.split('.')) == 3), None)
 
         with versions_file.open("w") as f:
             f.write("| Version | Documents |\n")

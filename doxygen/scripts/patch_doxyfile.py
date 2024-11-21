@@ -18,8 +18,7 @@ class VersionError(Exception):
 
 class DoxyfileUpdater:
     def __init__(self):
-        self.version_pattern = re.compile(r'^\d+\.\d+\.\d+(?:-rc\d+)?$')
-        self.base_version_pattern = re.compile(r'^\d+\.\d+\.\d+$')
+        self.version_pattern = re.compile(r'^\d+\.\d+\.\d+(?:\.\d+)?$')
 
     def validate_version(self, version: str) -> bool:
         """Validate version string format"""
@@ -33,7 +32,7 @@ class DoxyfileUpdater:
             cmake_file: Path to CMakeLists.txt
 
         Returns:
-            str: Version string in format X.Y.Z
+            str: Full version string, including C++ fix if present
 
         Raises:
             FileNotFoundError: If CMakeLists.txt doesn't exist
@@ -51,8 +50,16 @@ class DoxyfileUpdater:
             raise VersionError("Could not extract PROJECT VERSION")
 
         version = version_match.group(1)
-        if not self.base_version_pattern.match(version):
-            raise VersionError(f"Invalid base version format in CMakeLists.txt: {version}")
+
+        # Check for C++ fix version
+        cpp_fix_pattern = r'SET\s*\(VERSION_CPPFIX\s*"(\d+)"\s*\)'
+        cpp_fix_match = re.search(cpp_fix_pattern, content)
+
+        if cpp_fix_match:
+            version = f"{version}.{cpp_fix_match.group(1)}"
+
+        if not self.version_pattern.match(version):
+            raise VersionError(f"Invalid version format: {version}")
 
         return version
 
@@ -62,7 +69,7 @@ class DoxyfileUpdater:
 
         Args:
             doxyfile_path: Path to the Doxyfile
-            version: Optional version string (from tag), if not provided will use base version from CMakeLists.txt with -SNAPSHOT suffix
+            version: Optional version string, if not provided will use version from CMakeLists.txt
 
         Raises:
             FileNotFoundError: If Doxyfile doesn't exist
@@ -70,25 +77,23 @@ class DoxyfileUpdater:
         """
         logger.info("Computing current API version...")
 
-        if version:
-            if not self.validate_version(version):
-                raise VersionError(f"Invalid version format: {version}")
-            version_to_use = version
-        else:
-            # Use base version from CMakeLists.txt with -SNAPSHOT suffix
-            base_version = self._parse_cmake_version(Path("CMakeLists.txt"))
-            version_to_use = f"{base_version}-SNAPSHOT"
+        if version and not self.validate_version(version):
+            raise VersionError(f"Invalid version format: {version}")
 
-        logger.info(f"Using API version: {version_to_use}")
+        if not version:
+            # Use version from CMakeLists.txt
+            version = self._parse_cmake_version(Path("CMakeLists.txt"))
+
+        logger.info(f"Using API version: {version}")
 
         if not doxyfile_path.exists():
             raise FileNotFoundError(f"Doxyfile not found at {doxyfile_path}")
 
         try:
             content = doxyfile_path.read_text()
-            updated_content = content.replace("%PROJECT_VERSION%", version_to_use)
+            updated_content = content.replace("%PROJECT_VERSION%", version)
             doxyfile_path.write_text(updated_content)
-            logger.info(f"Updated {doxyfile_path} with version {version_to_use}")
+            logger.info(f"Updated {doxyfile_path} with version {version}")
         except IOError as e:
             raise IOError(f"Failed to update Doxyfile: {e}")
 
