@@ -156,8 +156,8 @@ class DocumentationManager:
 
             os.chdir(dest_dir)
 
-            logger.info(f"Create target directory {version}...")
-            version_dir = Path(version)
+            logger.info(f"Create target directory {version_to_use}...")
+            version_dir = Path(version_to_use)
             version_dir.mkdir(exist_ok=True)
 
             logger.info("Copy Doxygen doc...")
@@ -168,8 +168,8 @@ class DocumentationManager:
             for item in doxygen_out.glob("*"):
                 self._safe_copy(item, version_dir / item.name)
 
-            # Only create latest-stable symlink for non-RC releases
-            if "-rc" not in version:
+            # Only create latest-stable symlink for final releases (no RC, no SNAPSHOT)
+            if "-" not in version_to_use:  # Neither -rc nor -SNAPSHOT
                 logger.info("Creating latest-stable symlink...")
                 latest_link = Path("latest-stable")
                 if latest_link.exists():
@@ -178,7 +178,7 @@ class DocumentationManager:
                         shutil.rmtree(latest_link)
                     else:
                         latest_link.unlink()
-                latest_link.symlink_to(version)
+                latest_link.symlink_to(version_to_use)
 
                 logger.info("Writing robots.txt...")
                 robots_txt = Path("robots.txt")
@@ -204,7 +204,7 @@ class DocumentationManager:
         logger.info("Looking for version directories")
         versions = []
         for d in Path('.').glob('*'):
-            if d.is_dir() and self.version_pattern.match(d.name):
+            if d.is_dir() and (self.version_pattern.match(d.name) or "-SNAPSHOT" in d.name):
                 logger.info(f"Found version directory: {d.name}")
                 versions.append(d.name)
             elif d.is_dir():
@@ -213,8 +213,8 @@ class DocumentationManager:
         sorted_versions = sorted(versions, key=self._get_version_key, reverse=True)
         logger.debug(f"Sorted versions: {sorted_versions}")
 
-        # Find the latest stable version (first non-RC version)
-        latest_stable = next((v for v in sorted_versions if "-rc" not in v), None)
+        # Find the latest stable version (first version without -rc or -SNAPSHOT)
+        latest_stable = next((v for v in sorted_versions if "-" not in v), None)
 
         with versions_file.open("w") as f:
             f.write("| Version | Documents |\n")
