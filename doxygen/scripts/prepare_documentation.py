@@ -8,7 +8,7 @@ import subprocess
 import logging
 import fcntl
 from pathlib import Path
-from packaging.version import parse, Version, InvalidVersion
+from packaging.version import parse
 
 logging.basicConfig(
     level=logging.INFO,
@@ -21,7 +21,6 @@ class DocumentationManager:
         self.repo_url = f"https://github.com/{github_org}/{repo_name}.git"
         self.gh_pages_branch = "gh-pages"
         self.version_pattern = re.compile(r'^\d+\.\d+\.\d+(?:\.\d+)?$')
-        self.java_version_pattern = re.compile(r'^\d+\.\d+\.\d+$')
         self.lock_file = Path("/tmp/doc_manager.lock")
 
     def _acquire_lock(self):
@@ -38,42 +37,17 @@ class DocumentationManager:
         self.lock_fd.close()
 
     def _parse_cmake_version(self, cmake_file: Path) -> str:
-        """
-        Extract base version from CMakeLists.txt
-
-        Args:
-            cmake_file: Path to CMakeLists.txt
-
-        Returns:
-            str: Version string in format X.Y.Z
-
-        Raises:
-            ValueError: If version cannot be extracted
-            FileNotFoundError: If CMakeLists.txt doesn't exist
-        """
+        """Extract version from CMakeLists.txt"""
         if not cmake_file.exists():
             raise FileNotFoundError(f"CMakeLists.txt not found at {cmake_file}")
 
         content = cmake_file.read_text()
-
-        project_version_pattern = r'PROJECT\s*\([^)]*VERSION\s+(\d+\.\d+\.\d+)[^)]*\)'
-        version_match = re.search(project_version_pattern, content, re.MULTILINE | re.IGNORECASE)
+        version_match = re.search(r'PROJECT\s*\([^)]*VERSION\s+(\d+\.\d+\.\d+(?:\.\d+)?)[^)]*\)',
+                                  content, re.MULTILINE | re.IGNORECASE)
 
         if not version_match:
             raise ValueError("Could not extract PROJECT VERSION")
-
-        version = version_match.group(1)
-        if not self.java_version_pattern.match(version):
-            raise ValueError(f"Invalid Java reference version format in CMakeLists.txt: {version}")
-
-        # Check for C++ fix version
-        cpp_fix_pattern = r'SET\s*\(VERSION_CPPFIX\s*"(\d+)"\s*\)'
-        cpp_fix_match = re.search(cpp_fix_pattern, content)
-
-        if cpp_fix_match:
-            version = f"{version}.{cpp_fix_match.group(1)}"
-
-        return version
+        return version_match.group(1)
 
     def _get_version_key(self, version_str: str) -> tuple:
         """
@@ -101,17 +75,12 @@ class DocumentationManager:
             # Use negative values to reverse chronological order while keeping SNAPSHOT first
             return (not is_snapshot, -v.major, -v.minor, -v.micro, -cpp_fix)
 
-        except (InvalidVersion, ValueError, IndexError):
+        except Exception:
             # Return a default tuple in case of parsing error
             return (True, 0, 0, 0, 0)
 
     def _safe_copy(self, src: Path, dest: Path) -> None:
-        """
-        Safely copy files ensuring no path traversal vulnerability
-
-        Raises:
-            ValueError: If path traversal is detected
-        """
+        """Safely copy files ensuring no path traversal vulnerability"""
         try:
             src = src.resolve()
             dest = dest.resolve()
@@ -162,8 +131,6 @@ class DocumentationManager:
                 # Write latest-stable first if this is the stable version
                 if version == latest_stable:
                     f.write(f"| latest-stable ({latest_stable}) | [API documentation](latest-stable) |\n")
-
-                # Write the current version
                 f.write(f"| {version} | [API documentation]({version}) |\n")
 
     def prepare_documentation(self, version: str = None):
@@ -172,22 +139,14 @@ class DocumentationManager:
 
         Args:
             version: Version string (tag version for release, or base version for snapshots)
-
-        Raises:
-            ValueError: If version is invalid
-            RuntimeError: If another process is running
-            FileNotFoundError: If required files are missing
         """
         try:
             self._acquire_lock()
 
             if version:
-                if not self.version_pattern.match(version):
-                    raise ValueError(f"Invalid tag format: {version}")
                 version_to_use = version
                 is_snapshot = False
             else:
-                # Use base version from CMakeLists.txt with -SNAPSHOT suffix
                 base_version = self._parse_cmake_version(Path("CMakeLists.txt"))
                 version_to_use = f"{base_version}-SNAPSHOT"
                 is_snapshot = True
@@ -206,7 +165,7 @@ class DocumentationManager:
 
             os.chdir(dest_dir)
 
-            # For releases, remove all SNAPSHOT directories before creating the new version
+            # For releases, remove all SNAPSHOT directories
             if not is_snapshot:
                 self._remove_snapshots()
 
@@ -222,7 +181,6 @@ class DocumentationManager:
             for item in doxygen_out.glob("*"):
                 self._safe_copy(item, version_dir / item.name)
 
-                # Create latest-stable symlink for any final release (including C++ fixes)
             if not is_snapshot:
                 logger.info("Creating latest-stable symlink...")
                 latest_link = Path("latest-stable")
