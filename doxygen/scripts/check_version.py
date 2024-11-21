@@ -52,7 +52,7 @@ class VersionChecker:
             cmake_file: Path to CMakeLists.txt
 
         Returns:
-            str: Version string in format X.Y.Z (Java reference version)
+            str: Version string in format X.Y.Z[.T] (Java reference version with optional C++ fix)
 
         Raises:
             FileNotFoundError: If CMakeLists.txt doesn't exist
@@ -63,22 +63,17 @@ class VersionChecker:
 
         content = cmake_file.read_text()
 
-        project_version_pattern = r'PROJECT\s*\([^)]*VERSION\s+(\d+\.\d+\.\d+)[^)]*\)'
+        # Updated pattern to capture optional fourth number
+        project_version_pattern = r'PROJECT\s*\([^)]*VERSION\s+(\d+\.\d+\.\d+(?:\.\d+)?)[^)]*\)'
         version_match = re.search(project_version_pattern, content, re.MULTILINE | re.IGNORECASE)
 
         if not version_match:
             raise VersionError("Could not extract PROJECT VERSION")
 
         version = version_match.group(1)
-        if not self.java_version_pattern.match(version):
-            raise VersionError(f"Invalid Java reference version format in CMakeLists.txt: {version}")
+        if not self.version_pattern.match(version):
+            raise VersionError(f"Invalid version format in CMakeLists.txt: {version}")
 
-        # Check for C++ fix version
-        cpp_fix_pattern = r'SET\s*\(VERSION_CPPFIX\s*"(\d+)"\s*\)'
-        cpp_fix_match = re.search(cpp_fix_pattern, content)
-
-        if cpp_fix_match:
-            return f"{version}.{cpp_fix_match.group(1)}"
         return version
 
     def _run_git_command(self, args: list) -> str:
