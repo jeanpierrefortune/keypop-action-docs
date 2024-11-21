@@ -197,6 +197,37 @@ class DocumentationManager:
         finally:
             self._release_lock()
 
+    def _generate_versions_list(self, docs_dir: Path):
+        """Generate the versions list markdown file"""
+        versions_file = Path("list_versions.md")
+
+        logger.info("Looking for version directories")
+        versions = []
+        for d in Path('.').glob('*'):
+            if d.is_dir() and (self.version_pattern.match(d.name) or d.name.endswith("-SNAPSHOT")):
+                logger.info(f"Found version directory: {d.name}")
+                versions.append(d.name)
+            elif d.is_dir():
+                logger.debug(f"Skipping non-version directory: {d.name}")
+
+        sorted_versions = sorted(versions, key=self._get_version_key, reverse=True)
+        logger.debug(f"Sorted versions: {sorted_versions}")
+
+        # Find the latest stable version (first version without -rc or -SNAPSHOT)
+        latest_stable = next((v for v in sorted_versions if "-" not in v), None)
+
+        with versions_file.open("w") as f:
+            f.write("| Version | Documents |\n")
+            f.write("|:---:|---|\n")
+
+            for version in sorted_versions:
+                # Write latest-stable first if this is the stable version
+                if version == latest_stable:
+                    f.write(f"| latest-stable ({latest_stable}) | [API documentation](latest-stable) |\n")
+
+                # Write the current version
+                f.write(f"| {version} | [API documentation]({version}) |\n")
+
     def _get_version_key(self, version_str: str) -> tuple:
         """
         Create a sortable key for version ordering that maintains the following order:
