@@ -79,16 +79,15 @@ class DocumentationManager:
         """
         Create a sortable key for version ordering that maintains the following order:
         1. SNAPSHOT versions first (by Java version, then C++ fix)
-        2. Regular versions (by Java version, then C++ fix, newest first)
+        2. Regular versions (by Java version, then C++ fix, oldest first)
 
         Returns tuple of (major, minor, patch, cpp_fix, is_snapshot)
         """
         try:
-            # Remove snapshot suffix for parsing
             is_snapshot = "-SNAPSHOT" in version_str
             clean_version = version_str.replace("-SNAPSHOT", "")
 
-            # Split into components
+            # Parse version number components
             if "." in clean_version:
                 *java_parts, cpp_fix = clean_version.split(".")
                 java_version = ".".join(java_parts)
@@ -99,8 +98,12 @@ class DocumentationManager:
 
             v = parse(java_version)
 
-            # is_snapshot is first element for snapshot-first sorting
-            return (not is_snapshot, v.major, v.minor, v.micro, cpp_fix)
+            # Use negative values to reverse chronological order while keeping SNAPSHOT first
+            return (not is_snapshot, -v.major, -v.minor, -v.micro, -cpp_fix)
+
+        except (InvalidVersion, ValueError, IndexError):
+            # Return a default tuple in case of parsing error
+            return (True, 0, 0, 0, 0)
 
         except (InvalidVersion, ValueError, IndexError):
             # En cas d'erreur de parsing, mettre la version en dernier
