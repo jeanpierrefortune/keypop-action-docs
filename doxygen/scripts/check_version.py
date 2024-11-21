@@ -153,8 +153,8 @@ class VersionChecker:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Check version consistency")
-    parser.add_argument("--tag", type=str, help="Git tag to check against")
+    parser.add_argument("tag", nargs="?", help="Git tag to check against (optional)")
     args = parser.parse_args()
 
-    version_checker = VersionChecker()
-    version_checker.check_version(args.tag)
+    checker = VersionChecker()
+    checker.check_version(args.tag)
